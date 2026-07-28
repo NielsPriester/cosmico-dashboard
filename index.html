@@ -1,20 +1,211 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="nl">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Cosmico Beach Dashboard</title>
-
-    <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta http-equiv="refresh" content="21600">
+<title>Cosmico Beach — Live Strandweer</title>
+<style>
+:root{
+  --navy:#071b2a; --navy2:#0c3044; --card:#10384d; --cream:#fbf4e4;
+  --muted:#bdd0d8; --gold:#efb35f; --blue:#9edcf4; --green:#7ed6ae;
+}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--navy);color:var(--cream);
+font-family:Arial,Helvetica,sans-serif}
+body{background:
+radial-gradient(circle at 86% 8%,rgba(239,179,95,.18),transparent 28%),
+linear-gradient(145deg,#0c3044 0%,#061722 72%)}
+main{width:100vw;height:100vh;padding:3.2vh 3.1vw;display:grid;
+grid-template-rows:11vh 1fr 6vh;gap:2vh}
+header{display:flex;align-items:flex-start;justify-content:space-between}
+.eyebrow{font-size:1.25vw;letter-spacing:.35em;font-weight:800;color:var(--gold)}
+.logo{font-size:3.45vw;line-height:.95;font-weight:900;margin-top:.55vh;letter-spacing:.02em}
+.time{text-align:right}
+#clock{font-size:3.7vw;font-weight:900;line-height:.9}
+#date{margin-top:.8vh;color:var(--muted);font-size:1.05vw;text-transform:capitalize}
+.content{display:grid;grid-template-columns:1.08fr .92fr;gap:1.5vw;min-height:0}
+.left,.right{display:grid;gap:1.5vh;min-height:0}
+.left{grid-template-rows:1.1fr .9fr}
+.right{grid-template-rows:.82fr 1.18fr}
+.card{background:linear-gradient(145deg,rgba(17,57,78,.97),rgba(9,39,56,.97));
+border:1px solid rgba(255,255,255,.10);border-radius:1.3vw;padding:2.1vh 1.55vw;
+box-shadow:0 1vh 3vh rgba(0,0,0,.18);min-height:0}
+.card h2{margin:0 0 1.5vh;color:var(--gold);font-size:1vw;text-transform:uppercase;letter-spacing:.15em}
+.now{display:grid;grid-template-columns:1.08fr .92fr;gap:1.4vw;align-items:center}
+.temp-row{display:flex;align-items:center;gap:1.2vw}
+#icon{font-size:5vw}
+#temp{font-size:6.7vw;font-weight:900;line-height:.9}
+#condition{font-size:1.55vw;font-weight:800;margin-top:1.2vh}
+.place{font-size:.9vw;color:var(--muted);margin-top:.6vh}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:1vh .8vw}
+.metric{background:rgba(255,255,255,.055);padding:1.15vh .9vw;border-radius:.8vw}
+.metric span{display:block;color:var(--muted);font-size:.72vw;text-transform:uppercase;letter-spacing:.1em}
+.metric b{display:block;font-size:1.35vw;margin-top:.35vh}
+.hours{display:grid;grid-template-columns:repeat(6,1fr);gap:.7vw;height:calc(100% - 3vh)}
+.hour{background:rgba(255,255,255,.05);border-radius:.75vw;padding:1vh .4vw;text-align:center;
+display:flex;flex-direction:column;justify-content:space-around}
+.hour .t{color:var(--muted);font-size:.72vw}.hour .ico{font-size:1.9vw}
+.hour .deg{font-size:1.25vw;font-weight:900}.hour .rain{font-size:.7vw;color:var(--blue)}
+.sea-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:1vw;align-items:center}
+.wave{text-align:center}
+#wave{font-size:4.25vw;font-weight:900;line-height:1}
+.wave small{display:block;color:var(--muted);font-size:.72vw;margin-top:.5vh}
+.sea-list{display:grid;gap:.85vh}
+.sea-line{display:flex;justify-content:space-between;padding:.75vh 0;border-bottom:1px solid rgba(255,255,255,.08);
+font-size:.9vw}.sea-line b{font-size:1.05vw}
+.advice{display:grid;grid-template-columns:1.15fr .85fr;gap:1.1vw;height:calc(100% - 3vh)}
+.message{font-size:1.55vw;line-height:1.28;font-weight:800;display:flex;align-items:center}
+.message small{display:block;font-size:.75vw;line-height:1.45;font-weight:400;color:var(--muted);margin-top:1.2vh}
+.info{background:rgba(255,255,255,.055);border-radius:.85vw;padding:1.15vh 1vw;display:flex;flex-direction:column;justify-content:center}
+.info-row{display:flex;justify-content:space-between;padding:.75vh 0;font-size:.82vw}
+.info-row b{font-size:.95vw}
+.notice{margin-top:.8vh;padding-top:1vh;border-top:1px solid rgba(255,255,255,.08);color:var(--muted);
+font-size:.66vw;line-height:1.35}
+footer{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:.72vw}
+.status{display:flex;align-items:center;gap:.5vw}
+.dot{width:.55vw;height:.55vw;border-radius:50%;background:var(--gold)}
+.online .dot{background:var(--green)}
+.loading{font-size:1vw;color:var(--muted)}
+</style>
 </head>
-
 <body>
+<main>
+<header>
+  <div>
+    <div class="eyebrow">LIVE VANAF HET STRAND</div>
+    <div class="logo">COSMICO BEACH</div>
+  </div>
+  <div class="time"><div id="clock">--:--</div><div id="date">Zandvoort aan Zee</div></div>
+</header>
 
-<div id="app"></div>
+<section class="content">
+  <div class="left">
+    <article class="card now">
+      <div>
+        <h2>Weer op dit moment</h2>
+        <div class="temp-row"><div id="icon">◌</div><div id="temp">--°</div></div>
+        <div id="condition">Live gegevens worden geladen…</div>
+        <div class="place">Zandvoort aan Zee</div>
+      </div>
+      <div class="metrics">
+        <div class="metric"><span>Gevoelstemperatuur</span><b id="feels">--°</b></div>
+        <div class="metric"><span>Wind</span><b id="wind">--</b></div>
+        <div class="metric"><span>Windstoten</span><b id="gust">--</b></div>
+        <div class="metric"><span>UV-index</span><b id="uv">--</b></div>
+        <div class="metric"><span>Neerslag</span><b id="rainNow">-- mm</b></div>
+        <div class="metric"><span>Zicht</span><b id="visibility">-- km</b></div>
+      </div>
+    </article>
 
-<script src="script.js"></script>
+    <article class="card">
+      <h2>Verwachting komende uren</h2>
+      <div class="hours" id="hours"><div class="loading">Verwachting ophalen…</div></div>
+    </article>
+  </div>
 
+  <div class="right">
+    <article class="card">
+      <h2>Zee en kust</h2>
+      <div class="sea-grid">
+        <div class="wave"><div id="wave">-- m</div><small>verwachte golfhoogte</small></div>
+        <div class="sea-list">
+          <div class="sea-line"><span>Golfrichting</span><b id="waveDir">--</b></div>
+          <div class="sea-line"><span>Golfperiode</span><b id="wavePeriod">-- s</b></div>
+          <div class="sea-line"><span>Luchtvochtigheid</span><b id="humidity">--%</b></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2>Vandaag aan het strand</h2>
+      <div class="advice">
+        <div class="message" id="advice">
+          Geniet van het strand en volg altijd de strandvlaggen en aanwijzingen van de reddingsbrigade.
+          <small>Weer- en golfgegevens zijn modelverwachtingen. De actuele situatie ter plaatse kan afwijken.</small>
+        </div>
+        <div class="info">
+          <div class="info-row"><span>Zonsopkomst</span><b id="sunrise">--:--</b></div>
+          <div class="info-row"><span>Zonsondergang</span><b id="sunset">--:--</b></div>
+          <div class="info-row"><span>Hoogste UV vandaag</span><b id="uvMax">--</b></div>
+          <div class="notice">De officiële strandvlaggen, waarschuwingen en instructies van hulpdiensten zijn altijd leidend.</div>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<footer>
+  <span>Live weer- en golfverwachting via Open-Meteo</span>
+  <span class="status" id="status"><span class="dot"></span><span id="updated">verbinden…</span></span>
+</footer>
+</main>
+
+<script>
+const LAT=52.3765,LON=4.5330,SEA_LAT=52.390,SEA_LON=4.450;
+const weatherUrl=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m&hourly=temperature_2m,precipitation_probability,weather_code,uv_index,visibility&daily=sunrise,sunset,uv_index_max&timezone=Europe%2FAmsterdam&forecast_days=2&wind_speed_unit=kmh`;
+const marineUrl=`https://marine-api.open-meteo.com/v1/marine?latitude=${SEA_LAT}&longitude=${SEA_LON}&current=wave_height,wave_direction,wave_period&timezone=Europe%2FAmsterdam&forecast_days=2`;
+const $=id=>document.getElementById(id);
+const dirs=["N","NNO","NO","ONO","O","OZO","ZO","ZZO","Z","ZZW","ZW","WZW","W","WNW","NW","NNW"];
+const compass=d=>dirs[Math.round((((d||0)%360)+360)%360/22.5)%16];
+function weather(c){
+ if(c===0)return["Zonnig","☀️"]; if(c<=2)return["Licht bewolkt","🌤️"]; if(c===3)return["Bewolkt","☁️"];
+ if(c===45||c===48)return["Mistig","🌫️"]; if(c>=51&&c<=57)return["Motregen","🌦️"];
+ if(c>=61&&c<=67)return["Regen","🌧️"]; if(c>=71&&c<=77)return["Sneeuw","🌨️"];
+ if(c>=80&&c<=82)return["Buien","🌦️"]; if(c>=95)return["Onweer","⛈️"]; return["Wisselend","🌥️"];
+}
+const num=(v,d=0)=>Number.isFinite(v)?v.toFixed(d):"--";
+function clock(){
+ const d=new Date();
+ $("clock").textContent=d.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});
+ $("date").textContent=d.toLocaleDateString("nl-NL",{weekday:"long",day:"numeric",month:"long"});
+}
+function guestAdvice(gust,wave,uv,code){
+ const parts=[];
+ if(code>=95)parts.push("Er is kans op onweer. Volg waarschuwingen en aanwijzingen van medewerkers en hulpdiensten.");
+ else if(code>=61)parts.push("Er worden regenbuien verwacht. Houd de actuele lucht en waarschuwingen in de gaten.");
+ if(gust>=55)parts.push("Het waait zeer stevig. Let extra op losse spullen en parasols.");
+ else if(gust>=40)parts.push("Er staat een stevige wind. Houd lichte spullen goed vast.");
+ if(wave>=1.5)parts.push("De zee is onrustig. Ga alleen het water in waar toezicht is en volg de strandvlaggen.");
+ else if(wave>=1.0)parts.push("Er staat merkbare golfslag. Let extra op kinderen bij de waterlijn.");
+ if(uv>=6)parts.push("De UV-kracht is hoog. Smeer regelmatig en zoek op tijd de schaduw op.");
+ if(!parts.length)parts.push("Prima strandweer. Geniet ervan en blijf de strandvlaggen en aanwijzingen volgen.");
+ return parts.join(" ");
+}
+async function refresh(){
+ try{
+  const [wr,mr]=await Promise.all([fetch(weatherUrl,{cache:"no-store"}),fetch(marineUrl,{cache:"no-store"})]);
+  if(!wr.ok||!mr.ok)throw new Error("Live bron niet bereikbaar");
+  const w=await wr.json(),m=await mr.json(),c=w.current,mc=m.current||{};
+  const [txt,ico]=weather(c.weather_code);
+  $("temp").textContent=num(c.temperature_2m)+"°"; $("icon").textContent=ico; $("condition").textContent=txt;
+  $("feels").textContent=num(c.apparent_temperature)+"°";
+  $("wind").textContent=`${compass(c.wind_direction_10m)} ${num(c.wind_speed_10m)} km/u`;
+  $("gust").textContent=num(c.wind_gusts_10m)+" km/u"; $("rainNow").textContent=num(c.precipitation,1)+" mm";
+  $("humidity").textContent=num(c.relative_humidity_2m)+"%";
+  let idx=w.hourly.time.indexOf(c.time); if(idx<0)idx=0;
+  $("uv").textContent=num(w.hourly.uv_index[idx],1); $("uvMax").textContent=num(w.daily.uv_index_max[0],1);
+  $("visibility").textContent=num(w.hourly.visibility[idx]/1000,1)+" km";
+  $("sunrise").textContent=w.daily.sunrise[0].slice(11,16); $("sunset").textContent=w.daily.sunset[0].slice(11,16);
+  $("wave").textContent=num(mc.wave_height,1)+" m"; $("waveDir").textContent=Number.isFinite(mc.wave_direction)?compass(mc.wave_direction):"--";
+  $("wavePeriod").textContent=num(mc.wave_period,1)+" s";
+  let cards="";
+  for(let k=0;k<6;k++){
+    const i=Math.min(idx+k*2,w.hourly.time.length-1),[,ic]=weather(w.hourly.weather_code[i]);
+    cards+=`<div class="hour"><div class="t">${w.hourly.time[i].slice(11,16)}</div><div class="ico">${ic}</div>
+    <div class="deg">${num(w.hourly.temperature_2m[i])}°</div><div class="rain">💧 ${num(w.hourly.precipitation_probability[i])}%</div></div>`;
+  }
+  $("hours").innerHTML=cards;
+  $("advice").innerHTML=guestAdvice(c.wind_gusts_10m,mc.wave_height||0,w.daily.uv_index_max[0],c.weather_code)
+  +'<small>Weer- en golfgegevens zijn modelverwachtingen. De actuele situatie ter plaatse kan afwijken.</small>';
+  $("status").classList.add("online");
+  $("updated").textContent="bijgewerkt "+new Date().toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});
+ }catch(e){
+  $("condition").textContent="Live gegevens tijdelijk niet beschikbaar";
+  $("updated").textContent="geen live verbinding"; $("status").classList.remove("online"); console.error(e);
+ }
+}
+clock();setInterval(clock,1000);refresh();setInterval(refresh,300000);
+</script>
 </body>
 </html>
