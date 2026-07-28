@@ -241,3 +241,24 @@ setInterval(updateClock, 1000);
 
 loadDashboard();
 setInterval(loadDashboard, 300000);
+async function testStrandApp() {
+  const url =
+    "https://dashboard.staging.strand-app.nl/api/beachposts/v1/overview?municipality=zandvoort";
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Strand App gaf foutcode ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    console.log("Strand App gegevens:", data);
+    console.log("Strandposten:", data.strandposten);
+  } catch (error) {
+    console.error("Strand App kon niet worden opgehaald:", error);
+  }
+}
+
+testStrandApp();
