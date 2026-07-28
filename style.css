@@ -1,13 +1,24 @@
+
 :root {
-  --background: #d8b9a8;
-  --background-deep: #b98f79;
-  --panel: #4a2f28;
-  --panel-light: #5a3931;
-  --cream: #fff7eb;
-  --muted: #ead8cc;
-  --orange: #e85a24;
-  --gold: #f4b06a;
-  --green: #81d2a7;
+  --sand-1: #d7b39f;
+  --sand-2: #b9856f;
+  --sand-3: #8f5f4e;
+
+  --espresso-1: #2d1b17;
+  --espresso-2: #3a241e;
+  --espresso-3: #4b3028;
+
+  --cream: #fff3e7;
+  --cream-soft: #f3dfd0;
+  --muted: #d6bcae;
+
+  --orange: #e95b27;
+  --orange-soft: #f08a5d;
+  --gold: #f2b46c;
+  --green: #7fd3aa;
+
+  --border: rgba(255, 255, 255, 0.12);
+  --shadow: rgba(44, 24, 18, 0.28);
 }
 
 * {
@@ -20,16 +31,33 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: var(--background);
+  background: var(--sand-2);
   color: var(--cream);
   font-family: Arial, Helvetica, sans-serif;
 }
 
 body {
+  position: relative;
   background:
-    radial-gradient(circle at 86% 10%, rgba(232, 90, 36, 0.28), transparent 24%),
-    radial-gradient(circle at 15% 75%, rgba(255, 247, 235, 0.12), transparent 35%),
-    linear-gradient(145deg, #cba28f 0%, #9a6f60 100%);
+    radial-gradient(circle at 86% 8%, rgba(233, 91, 39, 0.34), transparent 24%),
+    radial-gradient(circle at 12% 78%, rgba(255, 243, 231, 0.13), transparent 30%),
+    linear-gradient(145deg, var(--sand-1) 0%, var(--sand-2) 55%, var(--sand-3) 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255,255,255,0.03) 0,
+      rgba(255,255,255,0.03) 1px,
+      transparent 1px,
+      transparent 5px
+    );
 }
 
 #app {
@@ -51,15 +79,17 @@ header {
   font-size: 1vw;
   letter-spacing: 0.28em;
   color: var(--orange);
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .brand {
-  margin-top: 0.5vh;
+  margin-top: 0.45vh;
   font-size: 3vw;
   line-height: 1;
   font-weight: 900;
   letter-spacing: 0.02em;
+  color: var(--cream);
+  text-shadow: 0 0.3vh 1.2vh rgba(46, 26, 20, 0.18);
 }
 
 .brand span {
@@ -74,12 +104,13 @@ header {
   display: block;
   font-size: 3.25vw;
   line-height: 0.95;
+  color: var(--cream);
 }
 
 .clock span {
   display: block;
   margin-top: 0.7vh;
-  color: var(--muted);
+  color: var(--cream-soft);
   font-size: 0.92vw;
   text-transform: capitalize;
 }
@@ -108,19 +139,25 @@ header {
 .card {
   min-height: 0;
   padding: 1.8vh 1.45vw;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--border);
   border-radius: 1.25vw;
   background:
-    linear-gradient(145deg, rgba(84, 52, 45, 0.97), rgba(55, 34, 29, 0.98));
+    linear-gradient(
+      145deg,
+      rgba(75, 48, 40, 0.98) 0%,
+      rgba(45, 27, 23, 0.99) 100%
+    );
   box-shadow:
-    0 1vh 3vh rgba(47, 28, 23, 0.24),
+    0 1.1vh 3vh var(--shadow),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(8px);
 }
 
 .card h2 {
   margin: 0 0 1.3vh;
   color: var(--orange);
   font-size: 0.9vw;
+  font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -140,18 +177,21 @@ header {
 
 .weather-icon {
   font-size: 4.4vw;
+  filter: drop-shadow(0 0.45vh 0.7vh rgba(0,0,0,0.2));
 }
 
 .temperature {
   font-size: 6vw;
   line-height: 0.9;
   font-weight: 900;
+  color: var(--cream);
 }
 
 .condition {
   margin-top: 1.1vh;
   font-size: 1.35vw;
-  font-weight: 800;
+  font-weight: 900;
+  color: var(--cream);
 }
 
 .location {
@@ -168,8 +208,9 @@ header {
 
 .metric {
   padding: 1vh 0.8vw;
+  border: 1px solid rgba(255,255,255,0.035);
   border-radius: 0.72vw;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .metric small {
@@ -184,6 +225,7 @@ header {
   display: block;
   margin-top: 0.35vh;
   font-size: 1.15vw;
+  color: var(--cream);
 }
 
 .hourly-forecast {
@@ -196,7 +238,7 @@ header {
 .hour {
   padding: 0.8vh 0.35vw;
   border-radius: 0.7vw;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -215,10 +257,11 @@ header {
 .hour .degrees {
   font-size: 1.08vw;
   font-weight: 900;
+  color: var(--cream);
 }
 
 .hour .rain {
-  color: #ffd2be;
+  color: #ffd0bd;
   font-size: 0.62vw;
 }
 
@@ -238,6 +281,7 @@ header {
   display: block;
   font-size: 4vw;
   line-height: 1;
+  color: var(--cream);
 }
 
 .wave-height span {
@@ -258,8 +302,13 @@ header {
   font-size: 0.78vw;
 }
 
+.detail-row span {
+  color: var(--cream-soft);
+}
+
 .detail-row b {
   font-size: 0.92vw;
+  color: var(--cream);
 }
 
 .advice-grid {
@@ -273,8 +322,9 @@ header {
   display: flex;
   align-items: center;
   font-size: 1.35vw;
-  font-weight: 800;
+  font-weight: 900;
   line-height: 1.28;
+  color: var(--cream);
 }
 
 .advice small {
@@ -288,8 +338,9 @@ header {
 
 .day-info {
   padding: 1vh 0.9vw;
+  border: 1px solid rgba(255,255,255,0.035);
   border-radius: 0.8vw;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -302,8 +353,13 @@ header {
   font-size: 0.75vw;
 }
 
+.info-row span {
+  color: var(--cream-soft);
+}
+
 .info-row b {
   font-size: 0.88vw;
+  color: var(--cream);
 }
 
 .disclaimer {
@@ -319,7 +375,7 @@ footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #fff3e8;
+  color: var(--cream);
   font-size: 0.62vw;
 }
 
@@ -334,8 +390,10 @@ footer {
   height: 0.48vw;
   border-radius: 50%;
   background: var(--orange);
+  box-shadow: 0 0 0.7vw rgba(233, 91, 39, 0.5);
 }
 
 .status.online .status-dot {
   background: var(--green);
+  box-shadow: 0 0 0.7vw rgba(127, 211, 170, 0.5);
 }
