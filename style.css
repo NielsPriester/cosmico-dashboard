@@ -84,7 +84,7 @@ body::before {
 
   grid-template-rows:
     8vh
-    12vh
+    18vh
     minmax(0, 1fr)
     4vh;
 
@@ -152,7 +152,7 @@ header {
   align-items: center;
   gap: 1.2vw;
 
-  padding: 1.3vh 1.3vw;
+  padding: 1.5vh 1.5vw;
 
   border: 1px solid var(--border);
   border-radius: 1.1vw;
@@ -172,8 +172,8 @@ header {
 }
 
 .beach-status-icon {
-  width: 4.5vw;
-  height: 4.5vw;
+  width: 5.2vw;
+  height: 5.2vw;
 
   display: flex;
   align-items: center;
@@ -182,7 +182,7 @@ header {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.08);
 
-  font-size: 2.4vw;
+  font-size: 2.8vw;
 }
 
 .beach-status-content {
@@ -201,7 +201,7 @@ header {
 .beach-status h2 {
   margin: 0;
 
-  font-size: 1.45vw;
+  font-size: 1.7vw;
   line-height: 1.1;
   color: var(--cream);
 }

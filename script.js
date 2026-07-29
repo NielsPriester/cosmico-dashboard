@@ -105,26 +105,38 @@ function escapeHtml(value) {
 function updateClock() {
   const now = new Date();
 
-  setText(
-    "clockTime",
-    now.toLocaleTimeString("nl-NL", {
-      hour: "2-digit",
-      minute: "2-digit"
-    })
-  );
+  const timeText = now.toLocaleTimeString("nl-NL", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 
-  setText(
-    "clockDate",
-    now.toLocaleDateString("nl-NL", {
-      weekday: "long",
-      day: "numeric",
-      month: "long"
-    })
-  );
+  const dateText = now.toLocaleDateString("nl-NL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  });
+
+  const timeElement =
+    document.getElementById("clockTime") ||
+    document.getElementById("time") ||
+    document.querySelector(".clock strong");
+
+  const dateElement =
+    document.getElementById("clockDate") ||
+    document.getElementById("date") ||
+    document.querySelector(".clock span");
+
+  if (timeElement) {
+    timeElement.textContent = timeText;
+  }
+
+  if (dateElement) {
+    dateElement.textContent = dateText;
+  }
 }
 
-setInterval(updateClock, 1000);
 updateClock();
+setInterval(updateClock, 1000);
 
 /* =========================================================
    WEERCODES
