@@ -1,98 +1,112 @@
-const LAT = 52.3765;
-const LON = 4.5330;
-const SEA_LAT = 52.39;
-const SEA_LON = 4.45;
+"use strict";
 
-const weatherUrl =
-  `https://api.open-meteo.com/v1/forecast` +
-  `?latitude=${LAT}` +
-  `&longitude=${LON}` +
-  `&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m` +
-  `&hourly=temperature_2m,precipitation_probability,weather_code,uv_index,visibility` +
-  `&daily=sunrise,sunset,uv_index_max` +
-  `&timezone=Europe%2FAmsterdam` +
-  `&forecast_days=2` +
-  `&wind_speed_unit=kmh`;
+/* =========================================================
+   COSMICO BEACH DASHBOARD
+   Zandvoort
+   ========================================================= */
 
-const marineUrl =
-  `https://marine-api.open-meteo.com/v1/marine` +
-  `?latitude=${SEA_LAT}` +
-  `&longitude=${SEA_LON}` +
-  `&current=wave_height,wave_direction,wave_period` +
-  `&timezone=Europe%2FAmsterdam`;
+const CONFIG = {
+  latitude: 52.374,
+  longitude: 4.525,
+  timezone: "Europe/Amsterdam",
 
-const beachPostsUrl =
-  `https://dashboard.staging.strand-app.nl/api/beachposts/v1/overview` +
-  `?municipality=zandvoort`;
+  weatherUrl:
+    "https://api.open-meteo.com/v1/forecast" +
+    "?latitude=52.374" +
+    "&longitude=4.525" +
+    "&current=temperature_2m,apparent_temperature,relative_humidity_2m," +
+    "weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m" +
+    "&hourly=temperature_2m,weather_code,precipitation_probability" +
+    "&daily=uv_index_max,sunrise,sunset" +
+    "&timezone=Europe%2FAmsterdam" +
+    "&forecast_days=2",
 
-const BEACH_CACHE_KEY = "cosmicoBeachStatus";
-const BEACH_CACHE_DATE_KEY = "cosmicoBeachStatusDate";
+  marineUrl:
+    "https://marine-api.open-meteo.com/v1/marine" +
+    "?latitude=52.374" +
+    "&longitude=4.525" +
+    "&current=wave_height,wave_direction,wave_period,sea_surface_temperature" +
+    "&timezone=Europe%2FAmsterdam",
 
-const $ = (id) => document.getElementById(id);
+  beachPostsUrl:
+    "https://dashboard.staging.strand-app.nl/api/beachposts/v1/overview" +
+    "?municipality=zandvoort",
 
-const windDirections = [
-  "N", "NNO", "NO", "ONO",
-  "O", "OZO", "ZO", "ZZO",
-  "Z", "ZZW", "ZW", "WZW",
-  "W", "WNW", "NW", "NNW"
-];
+  refreshInterval: 10 * 60 * 1000
+};
+
+/* =========================================================
+   HULPFUNCTIES
+   ========================================================= */
+
+function byId(id) {
+  return document.getElementById(id);
+}
 
 function setText(id, value) {
-  const element = $(id);
+  const element = byId(id);
 
   if (element) {
-    element.textContent = value;
+    element.textContent =
+      value === undefined || value === null || value === ""
+        ? "—"
+        : value;
   }
 }
 
 function setHtml(id, value) {
-  const element = $(id);
+  const element = byId(id);
 
   if (element) {
     element.innerHTML = value;
   }
 }
 
-function number(value, decimals = 0) {
-  const parsedValue = Number(value);
+function safeNumber(value, decimals = 0) {
+  const number = Number(value);
 
-  return Number.isFinite(parsedValue)
-    ? parsedValue.toFixed(decimals)
-    : "--";
-}
-
-function windDirection(degrees) {
-  const parsedDegrees = Number(degrees);
-
-  if (!Number.isFinite(parsedDegrees)) {
-    return "--";
+  if (!Number.isFinite(number)) {
+    return "—";
   }
 
-  const normalized = ((parsedDegrees % 360) + 360) % 360;
-
-  return windDirections[
-    Math.round(normalized / 22.5) % 16
-  ];
+  return number.toFixed(decimals);
 }
 
-function weatherInfo(code) {
-  if (code === 0) return ["Zonnig", "☀️"];
-  if (code <= 2) return ["Licht bewolkt", "🌤️"];
-  if (code === 3) return ["Bewolkt", "☁️"];
-  if (code === 45 || code === 48) return ["Mistig", "🌫️"];
-  if (code >= 51 && code <= 57) return ["Motregen", "🌦️"];
-  if (code >= 61 && code <= 67) return ["Regen", "🌧️"];
-  if (code >= 80 && code <= 82) return ["Buien", "🌦️"];
-  if (code >= 95) return ["Onweer", "⛈️"];
+function formatTime(dateString) {
+  if (!dateString) {
+    return "—";
+  }
 
-  return ["Wisselend", "🌥️"];
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleTimeString("nl-NL", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+/* =========================================================
+   KLOK
+   ========================================================= */
 
 function updateClock() {
   const now = new Date();
 
   setText(
-    "clock",
+    "clockTime",
     now.toLocaleTimeString("nl-NL", {
       hour: "2-digit",
       minute: "2-digit"
@@ -100,7 +114,7 @@ function updateClock() {
   );
 
   setText(
-    "date",
+    "clockDate",
     now.toLocaleDateString("nl-NL", {
       weekday: "long",
       day: "numeric",
@@ -109,341 +123,571 @@ function updateClock() {
   );
 }
 
-function localDateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+setInterval(updateClock, 1000);
+updateClock();
 
-  return `${year}-${month}-${day}`;
-}
+/* =========================================================
+   WEERCODES
+   ========================================================= */
 
-function getCachedBeachStatus() {
-  try {
-    const cached = localStorage.getItem(BEACH_CACHE_KEY);
-
-    return cached ? JSON.parse(cached) : null;
-  } catch (error) {
-    console.warn("Opgeslagen strandstatus kon niet worden gelezen:", error);
-    return null;
-  }
-}
-
-function saveBeachStatus(data) {
-  try {
-    localStorage.setItem(
-      BEACH_CACHE_KEY,
-      JSON.stringify(data)
-    );
-
-    localStorage.setItem(
-      BEACH_CACHE_DATE_KEY,
-      localDateKey()
-    );
-  } catch (error) {
-    console.warn("Strandstatus kon niet worden opgeslagen:", error);
-  }
-}
-
-function shouldRefreshBeachStatus() {
-  const now = new Date();
-  const cachedDate = localStorage.getItem(BEACH_CACHE_DATE_KEY);
-
-  const isAfterTwelve =
-    now.getHours() >= 12;
-
-  const alreadyUpdatedToday =
-    cachedDate === localDateKey(now);
-
-  return isAfterTwelve && !alreadyUpdatedToday;
-}
-
-function summarizeBeachPosts(posts) {
-  if (!Array.isArray(posts) || posts.length === 0) {
-    return null;
-  }
-
-  const southPost =
-    posts.find((post) =>
-      String(post.name || "").toLowerCase().includes("zuid")
-    ) || posts[0];
-
-  const activeFlagPost =
-    posts.find((post) => post.flag_status === true);
-
-  const selectedPost =
-    activeFlagPost || southPost;
-
-  const flagText =
-    selectedPost.flag_text ||
-    selectedPost.state_text ||
-    selectedPost.state ||
-    "Geen actuele vlaginformatie beschikbaar.";
-
-  const extendedText =
-    selectedPost.flag_extended_text || "";
-
-  return {
-    name: selectedPost.name || "Zandvoort aan Zee",
-    flag: selectedPost.flag || "",
-    flagColor: selectedPost.flag_color || "333333",
-    flagImage:
-      selectedPost.flag_img_no_text ||
-      selectedPost.flag_img ||
-      "",
-    flagStatus: selectedPost.flag_status === true,
-    stateStatus: selectedPost.state_status === true,
-    title: flagText,
-    description: extendedText,
-    updatedAt: new Date().toISOString()
+function weatherInfo(code) {
+  const weatherCodes = {
+    0: ["Onbewolkt", "☀️"],
+    1: ["Vrij zonnig", "🌤️"],
+    2: ["Halfbewolkt", "⛅"],
+    3: ["Bewolkt", "☁️"],
+    45: ["Mist", "🌫️"],
+    48: ["Rijpmist", "🌫️"],
+    51: ["Lichte motregen", "🌦️"],
+    53: ["Motregen", "🌦️"],
+    55: ["Stevige motregen", "🌧️"],
+    61: ["Lichte regen", "🌦️"],
+    63: ["Regen", "🌧️"],
+    65: ["Zware regen", "🌧️"],
+    71: ["Lichte sneeuw", "🌨️"],
+    73: ["Sneeuw", "🌨️"],
+    75: ["Zware sneeuw", "❄️"],
+    80: ["Lichte buien", "🌦️"],
+    81: ["Buien", "🌧️"],
+    82: ["Zware buien", "⛈️"],
+    95: ["Onweer", "⛈️"],
+    96: ["Onweer met hagel", "⛈️"],
+    99: ["Zwaar onweer", "⛈️"]
   };
+
+  return weatherCodes[code] || ["Onbekend", "🌤️"];
 }
 
-async function fetchBeachStatus() {
-  const response = await fetch(beachPostsUrl, {
+function windDirection(degrees) {
+  if (!Number.isFinite(Number(degrees))) {
+    return "—";
+  }
+
+  const directions = [
+    "N",
+    "NO",
+    "O",
+    "ZO",
+    "Z",
+    "ZW",
+    "W",
+    "NW"
+  ];
+
+  const index = Math.round(Number(degrees) / 45) % 8;
+
+  return directions[index];
+}
+
+/* =========================================================
+   DATA OPHALEN
+   ========================================================= */
+
+async function fetchJson(url) {
+  const response = await fetch(url, {
     cache: "no-store"
   });
 
   if (!response.ok) {
     throw new Error(
-      `Strand App gaf foutcode ${response.status}`
+      `HTTP-fout ${response.status} bij ${url}`
     );
   }
 
-  const data = await response.json();
-
-  if (
-    data.getstrandposten !== "success" ||
-    !Array.isArray(data.strandposten)
-  ) {
-    throw new Error(
-      "Strand App gaf geen geldige strandposten terug"
-    );
-  }
-
-  const beachStatus =
-    summarizeBeachPosts(data.strandposten);
-
-  if (!beachStatus) {
-    throw new Error(
-      "Geen strandstatus gevonden"
-    );
-  }
-
-  saveBeachStatus(beachStatus);
-
-  return beachStatus;
+  return response.json();
 }
 
-async function loadBeachStatus() {
-  const cachedStatus = getCachedBeachStatus();
-
-  /*
-   * Voor 12:00 uur gebruiken we de laatst opgeslagen status.
-   * Na 12:00 uur halen we maximaal één keer per dag nieuwe data op.
-   * Wanneer er nog nooit data is opgeslagen, proberen we direct op te halen.
-   */
-  if (cachedStatus && !shouldRefreshBeachStatus()) {
-    return cachedStatus;
-  }
-
+async function loadBeachPosts() {
   try {
-    return await fetchBeachStatus();
-  } catch (error) {
-    console.error("Strand App fout:", error);
+    const data = await fetchJson(CONFIG.beachPostsUrl);
 
-    if (cachedStatus) {
-      return cachedStatus;
+    if (
+      data.getstrandposten !== "success" ||
+      !Array.isArray(data.strandposten)
+    ) {
+      throw new Error("Ongeldige Strand App-response");
     }
 
-    return {
-      name: "Zandvoort aan Zee",
-      flag: "",
-      flagColor: "333333",
-      flagImage: "",
-      flagStatus: false,
-      stateStatus: false,
-      title: "Officiële strandstatus tijdelijk niet beschikbaar.",
-      description: "",
-      updatedAt: null
-    };
+    return data.strandposten;
+  } catch (error) {
+    console.error("Strandposten konden niet worden geladen:", error);
+    return [];
   }
 }
 
-function beachStatusHtml(beachStatus) {
-  if (!beachStatus) {
-    return "";
+/* =========================================================
+   REDDINGSPOSTEN TONEN
+   ========================================================= */
+
+function findBeachPost(posts, searchTerm) {
+  const term = searchTerm.toLowerCase();
+
+  return posts.find((post) =>
+    String(post.name || "")
+      .toLowerCase()
+      .includes(term)
+  );
+}
+
+function lifeguardStatus(post) {
+  if (!post) {
+    return {
+      active: false,
+      icon: "⚪",
+      label: "Status niet beschikbaar",
+      text: "De actuele status kon niet worden opgehaald."
+    };
   }
 
-  const imageHtml = beachStatus.flagImage
-    ? `
-      <img
-        src="${beachStatus.flagImage}"
-        alt="Actuele strandvlag"
-        class="beach-flag-image"
-      >
-    `
-    : "";
+  const active = post.state_status === true;
 
-  const updateText = beachStatus.updatedAt
-    ? new Date(beachStatus.updatedAt).toLocaleString("nl-NL", {
-        day: "numeric",
-        month: "long",
-        hour: "2-digit",
-        minute: "2-digit"
-      })
-    : "tijd onbekend";
+  return {
+    active,
+    icon: active ? "🟢" : "⚫",
+    label: active
+      ? "Lifeguards aanwezig"
+      : "Geen toezicht",
+    text:
+      post.state_text ||
+      post.state ||
+      (active
+        ? "Lifeguards houden toezicht."
+        : "Zwemmen op eigen risico.")
+  };
+}
+
+function getFlagInformation(post) {
+  if (!post || post.flag_status !== true) {
+    return null;
+  }
+
+  return {
+    name: post.flag || "Actieve vlag",
+    text:
+      post.flag_text ||
+      "Er is een waarschuwingsvlag actief.",
+    extendedText:
+      post.flag_extended_text || "",
+    image:
+      post.flag_img_no_text ||
+      post.flag_img ||
+      ""
+  };
+}
+
+function beachPostCard(post, fallbackName) {
+  const status = lifeguardStatus(post);
+  const flag = getFlagInformation(post);
+
+  const name = escapeHtml(
+    post?.name || fallbackName
+  );
+
+  const statusText = escapeHtml(status.text);
+
+  let flagHtml = `
+    <div style="
+      margin-top:0.45vh;
+      color:var(--muted);
+      font-size:0.58vw;
+    ">
+      Geen actieve waarschuwingsvlag gemeld
+    </div>
+  `;
+
+  if (flag) {
+    const imageHtml = flag.image
+      ? `
+        <img
+          src="${escapeHtml(flag.image)}"
+          alt="${escapeHtml(flag.name)}"
+          style="
+            width:2.6vw;
+            height:3.8vh;
+            object-fit:contain;
+            flex-shrink:0;
+          "
+        >
+      `
+      : `<span style="font-size:1.4vw;">🚩</span>`;
+
+    flagHtml = `
+      <div style="
+        display:flex;
+        align-items:center;
+        gap:0.55vw;
+        margin-top:0.45vh;
+        padding-top:0.45vh;
+        border-top:1px solid rgba(255,255,255,0.10);
+      ">
+        ${imageHtml}
+
+        <div style="min-width:0;">
+          <strong style="
+            display:block;
+            color:var(--gold);
+            font-size:0.67vw;
+          ">
+            ${escapeHtml(flag.text)}
+          </strong>
+
+          ${
+            flag.extendedText
+              ? `
+                <span style="
+                  display:block;
+                  margin-top:0.15vh;
+                  color:var(--muted);
+                  font-size:0.5vw;
+                  line-height:1.2;
+                ">
+                  ${escapeHtml(flag.extendedText)}
+                </span>
+              `
+              : ""
+          }
+        </div>
+      </div>
+    `;
+  }
 
   return `
-    <div class="official-beach-status">
-      ${imageHtml}
+    <div style="
+      min-width:0;
+      height:100%;
+      padding:0.75vh 0.8vw;
+      border-radius:0.7vw;
+      background:rgba(255,255,255,0.07);
+      border:1px solid rgba(255,255,255,0.06);
+      overflow:hidden;
+    ">
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:0.5vw;
+      ">
+        <strong style="
+          color:var(--cream);
+          font-size:0.78vw;
+          line-height:1.1;
+        ">
+          ${name}
+        </strong>
 
-      <div class="official-beach-status-text">
-        <div class="official-label">
-          Officiële strandinformatie
-        </div>
-
-        <strong>${beachStatus.title}</strong>
-
-        ${
-          beachStatus.description
-            ? `<p>${beachStatus.description}</p>`
-            : ""
-        }
-
-        <small>
-          ${beachStatus.name} · bijgewerkt ${updateText}
-        </small>
+        <span style="
+          flex-shrink:0;
+          font-size:0.72vw;
+          font-weight:900;
+          color:${status.active ? "var(--green)" : "var(--cream-soft)"};
+        ">
+          ${status.icon}
+          ${escapeHtml(status.label)}
+        </span>
       </div>
+
+      <div style="
+        margin-top:0.35vh;
+        color:var(--cream-soft);
+        font-size:0.56vw;
+        line-height:1.25;
+      ">
+        ${statusText}
+      </div>
+
+      ${flagHtml}
     </div>
   `;
 }
 
-function weatherAdvice(gusts, waves, uv, weatherCode) {
-  const messages = [];
+function updateBeachStatusBanner(posts) {
+  const beachStatus = byId("beachStatus");
+
+  if (!beachStatus) {
+    return;
+  }
+
+  const north =
+    findBeachPost(posts, "zvt noord") ||
+    findBeachPost(posts, "noord");
+
+  const south =
+    findBeachPost(posts, "zvt zuid") ||
+    findBeachPost(posts, "zuid");
+
+  const hasPosts = north || south;
+
+  beachStatus.innerHTML = `
+    <div class="beach-status-icon">
+      🛟
+    </div>
+
+    <div class="beach-status-content">
+      <div class="beach-status-label">
+        ACTUELE INFORMATIE STRAND APP
+      </div>
+
+      <div style="
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:1vw;
+        margin-bottom:0.55vh;
+      ">
+        <h2 style="margin:0;">
+          Reddingsbrigade Zandvoort
+        </h2>
+
+        <span style="
+          color:var(--muted);
+          font-size:0.5vw;
+          white-space:nowrap;
+        ">
+          Live status van beide strandposten
+        </span>
+      </div>
+
+      ${
+        hasPosts
+          ? `
+            <div style="
+              display:grid;
+              grid-template-columns:1fr 1fr;
+              gap:0.7vw;
+              height:7.1vh;
+            ">
+              ${beachPostCard(
+                north,
+                "Reddingspost ZVT Noord"
+              )}
+
+              ${beachPostCard(
+                south,
+                "Reddingspost ZVT Zuid"
+              )}
+            </div>
+          `
+          : `
+            <div style="
+              padding:0.8vh 0.8vw;
+              border-radius:0.7vw;
+              background:rgba(255,255,255,0.07);
+              color:var(--cream-soft);
+              font-size:0.7vw;
+            ">
+              De actuele reddingsbrigadestatus kon niet worden opgehaald.
+              Volg altijd de vlaggen en aanwijzingen op het strand.
+            </div>
+          `
+      }
+    </div>
+  `;
+}
+
+/* =========================================================
+   UURVERWACHTING
+   ========================================================= */
+
+function renderHourlyForecast(hourly) {
+  const container = byId("hourlyForecast");
+
+  if (!container || !hourly?.time) {
+    return;
+  }
+
+  const now = new Date();
+  const currentHour = now.getHours();
+
+  let startIndex = hourly.time.findIndex((time) => {
+    const date = new Date(time);
+
+    return (
+      date.getDate() === now.getDate() &&
+      date.getHours() >= currentHour
+    );
+  });
+
+  if (startIndex < 0) {
+    startIndex = 0;
+  }
+
+  const items = [];
+
+  for (
+    let index = startIndex;
+    index < Math.min(startIndex + 6, hourly.time.length);
+    index += 1
+  ) {
+    const date = new Date(hourly.time[index]);
+    const [, icon] = weatherInfo(
+      hourly.weather_code?.[index]
+    );
+
+    items.push(`
+      <div class="hour">
+        <div class="time">
+          ${date.toLocaleTimeString("nl-NL", {
+            hour: "2-digit",
+            minute: "2-digit"
+          })}
+        </div>
+
+        <div class="icon">${icon}</div>
+
+        <div class="degrees">
+          ${safeNumber(
+            hourly.temperature_2m?.[index],
+            0
+          )}°
+        </div>
+
+        <div class="rain">
+          💧 ${safeNumber(
+            hourly.precipitation_probability?.[index],
+            0
+          )}%
+        </div>
+      </div>
+    `);
+  }
+
+  container.innerHTML = items.join("");
+}
+
+/* =========================================================
+   STRANDADVIES
+   ========================================================= */
+
+function createBeachAdvice(weather, marine, uvIndex) {
+  const temperature = Number(weather.temperature_2m);
+  const windSpeed = Number(weather.wind_speed_10m);
+  const gusts = Number(weather.wind_gusts_10m);
+  const waveHeight = Number(marine.wave_height);
+  const uv = Number(uvIndex);
+  const weatherCode = Number(weather.weather_code);
+
+  const warnings = [];
+  const positives = [];
 
   if (weatherCode >= 95) {
-    messages.push(
-      "Kans op onweer. Volg de aanwijzingen van medewerkers en hulpdiensten."
+    warnings.push(
+      "Onweer mogelijk. Ga bij onweer direct van het strand."
     );
-  } else if (weatherCode >= 61) {
-    messages.push(
-      "Er worden buien verwacht. Houd de actuele lucht goed in de gaten."
-    );
+  } else if (
+    [61, 63, 65, 80, 81, 82].includes(weatherCode)
+  ) {
+    warnings.push("Houd rekening met regen of buien.");
   }
 
-  if (gusts >= 55) {
-    messages.push(
-      "Het waait zeer stevig. Let extra op losse spullen en parasols."
+  if (windSpeed >= 40 || gusts >= 55) {
+    warnings.push(
+      "Er staat veel wind. Losse spullen kunnen wegwaaien."
     );
-  } else if (gusts >= 40) {
-    messages.push(
-      "Er staat een stevige wind. Houd lichte spullen goed vast."
+  } else if (windSpeed >= 25) {
+    warnings.push(
+      "Het is behoorlijk winderig op het strand."
     );
+  } else {
+    positives.push("De wind is redelijk rustig.");
   }
 
-  if (waves >= 1.5) {
-    messages.push(
-      "De zee is onrustig. Volg altijd de strandvlaggen."
+  if (waveHeight >= 1.5) {
+    warnings.push(
+      "Er staan stevige golven. Wees extra voorzichtig in zee."
     );
-  } else if (waves >= 1) {
-    messages.push(
-      "Er staat merkbare golfslag. Let extra op kinderen bij de waterlijn."
+  } else if (waveHeight >= 0.8) {
+    warnings.push(
+      "Er is merkbare golfslag. Houd kinderen goed in de gaten."
     );
+  } else {
+    positives.push("De golfhoogte is beperkt.");
   }
 
   if (uv >= 6) {
-    messages.push(
-      "De UV-kracht is hoog. Smeer regelmatig en zoek op tijd de schaduw op."
+    warnings.push(
+      "De UV-straling is hoog. Smeer regelmatig met zonnebrand."
+    );
+  } else if (uv >= 3) {
+    warnings.push(
+      "Bescherm je huid tegen de zon."
     );
   }
 
-  if (messages.length === 0) {
-    messages.push(
-      "Prima strandweer. Geniet ervan en blijf de strandvlaggen volgen."
+  if (temperature >= 22) {
+    positives.push(
+      "Het is een aangename strandtemperatuur."
+    );
+  } else if (temperature < 16) {
+    warnings.push(
+      "Het voelt fris aan op het strand."
     );
   }
 
-  return messages.join(" ");
-}
-
-function completeBeachAdvice(
-  beachStatus,
-  gusts,
-  waves,
-  uv,
-  weatherCode
-) {
-  return `
-    ${beachStatusHtml(beachStatus)}
-
-    <div class="weather-beach-advice">
-      ${weatherAdvice(
-        gusts,
-        waves,
-        uv,
-        weatherCode
-      )}
-
+  if (warnings.length === 0) {
+    return `
+      <strong>Goed strandweer</strong>
       <small>
-        De vlaggen op het strand en instructies van hulpdiensten zijn altijd leidend.
+        ${escapeHtml(
+          positives.join(" ")
+        )}
+        Blijf altijd letten op de vlaggen en aanwijzingen van de lifeguards.
       </small>
-    </div>
+    `;
+  }
+
+  return `
+    <strong>${escapeHtml(warnings[0])}</strong>
+    <small>
+      ${escapeHtml(
+        [...warnings.slice(1), ...positives]
+          .slice(0, 3)
+          .join(" ")
+      )}
+      De officiële strandstatus hierboven is altijd leidend.
+    </small>
   `;
 }
 
+/* =========================================================
+   DASHBOARD LADEN
+   ========================================================= */
+
 async function loadDashboard() {
+  setText("connectionStatus", "Gegevens worden bijgewerkt...");
+
   try {
     const [
-      weatherResponse,
-      marineResponse,
-      beachStatus
+      weatherData,
+      marineData,
+      beachPosts
     ] = await Promise.all([
-      fetch(weatherUrl, {
-        cache: "no-store"
-      }),
-
-      fetch(marineUrl, {
-        cache: "no-store"
-      }),
-
-      loadBeachStatus()
+      fetchJson(CONFIG.weatherUrl),
+      fetchJson(CONFIG.marineUrl),
+      loadBeachPosts()
     ]);
 
-    if (!weatherResponse.ok) {
-      throw new Error(
-        `Weerbron gaf foutcode ${weatherResponse.status}`
-      );
-    }
-
-    if (!marineResponse.ok) {
-      throw new Error(
-        `Marinebron gaf foutcode ${marineResponse.status}`
-      );
-    }
-
-    const weatherData =
-      await weatherResponse.json();
-
-    const marineData =
-      await marineResponse.json();
-
-    const current =
-      weatherData.current || {};
-
-    const marine =
-      marineData.current || {};
+    const current = weatherData.current || {};
+    const hourly = weatherData.hourly || {};
+    const daily = weatherData.daily || {};
+    const marine = marineData.current || {};
 
     const [description, icon] =
       weatherInfo(current.weather_code);
 
-    setText(
-      "temperature",
-      `${number(current.temperature_2m)}°`
-    );
+    /* Reddingsbrigade */
+
+    updateBeachStatusBanner(beachPosts);
+
+    /* Huidig weer */
 
     setText(
       "weatherIcon",
       icon
+    );
+
+    setText(
+      "temperature",
+      `${safeNumber(current.temperature_2m, 0)}°`
     );
 
     setText(
@@ -453,160 +697,114 @@ async function loadDashboard() {
 
     setText(
       "feelsLike",
-      `${number(current.apparent_temperature)}°`
-    );
-
-    setText(
-      "wind",
-      `${windDirection(current.wind_direction_10m)} ` +
-      `${number(current.wind_speed_10m)} km/u`
-    );
-
-    setText(
-      "gusts",
-      `${number(current.wind_gusts_10m)} km/u`
-    );
-
-    setText(
-      "precipitation",
-      `${number(current.precipitation, 1)} mm`
+      `${safeNumber(
+        current.apparent_temperature,
+        0
+      )}°C`
     );
 
     setText(
       "humidity",
-      `${number(current.relative_humidity_2m)}%`
-    );
-
-    let hourIndex =
-      weatherData.hourly.time.indexOf(current.time);
-
-    if (hourIndex < 0) {
-      const currentHour =
-        current.time?.slice(0, 13);
-
-      hourIndex =
-        weatherData.hourly.time.findIndex(
-          (time) => time.slice(0, 13) === currentHour
-        );
-    }
-
-    if (hourIndex < 0) {
-      hourIndex = 0;
-    }
-
-    const currentUv =
-      weatherData.hourly.uv_index[hourIndex];
-
-    const maximumUv =
-      weatherData.daily.uv_index_max[0];
-
-    setText(
-      "uvIndex",
-      number(currentUv, 1)
+      `${safeNumber(
+        current.relative_humidity_2m,
+        0
+      )}%`
     );
 
     setText(
-      "uvMax",
-      number(maximumUv, 1)
+      "wind",
+      `${safeNumber(
+        current.wind_speed_10m,
+        0
+      )} km/u ${windDirection(
+        current.wind_direction_10m
+      )}`
     );
 
     setText(
-      "visibility",
-      `${number(
-        weatherData.hourly.visibility[hourIndex] / 1000,
-        1
-      )} km`
+      "windGusts",
+      `${safeNumber(
+        current.wind_gusts_10m,
+        0
+      )} km/u`
     );
 
-    setText(
-      "sunrise",
-      weatherData.daily.sunrise[0].slice(11, 16)
-    );
+    /* Uurverwachting */
 
-    setText(
-      "sunset",
-      weatherData.daily.sunset[0].slice(11, 16)
-    );
+    renderHourlyForecast(hourly);
+
+    /* Zee */
 
     setText(
       "waveHeight",
-      `${number(marine.wave_height, 1)} m`
-    );
-
-    setText(
-      "waveDirection",
-      windDirection(marine.wave_direction)
+      `${safeNumber(
+        marine.wave_height,
+        1
+      )} m`
     );
 
     setText(
       "wavePeriod",
-      `${number(marine.wave_period, 1)} s`
+      `${safeNumber(
+        marine.wave_period,
+        1
+      )} sec`
     );
 
-    let forecastHtml = "";
-
-    for (let step = 0; step < 6; step += 1) {
-      const index = Math.min(
-        hourIndex + step * 2,
-        weatherData.hourly.time.length - 1
-      );
-
-      const [, forecastIcon] =
-        weatherInfo(
-          weatherData.hourly.weather_code[index]
-        );
-
-      forecastHtml += `
-        <div class="hour">
-          <div class="time">
-            ${weatherData.hourly.time[index].slice(11, 16)}
-          </div>
-
-          <div class="icon">
-            ${forecastIcon}
-          </div>
-
-          <div class="degrees">
-            ${number(
-              weatherData.hourly.temperature_2m[index]
-            )}°
-          </div>
-
-          <div class="rain">
-            💧 ${number(
-              weatherData.hourly
-                .precipitation_probability[index]
-            )}%
-          </div>
-        </div>
-      `;
-    }
-
-    setHtml(
-      "hourlyForecast",
-      forecastHtml
-    );
-
-    setHtml(
-      "beachAdvice",
-      completeBeachAdvice(
-        beachStatus,
-        Number(current.wind_gusts_10m) || 0,
-        Number(marine.wave_height) || 0,
-        Number(maximumUv) || 0,
-        Number(current.weather_code) || 0
+    setText(
+      "waveDirection",
+      windDirection(
+        marine.wave_direction
       )
     );
 
-    const statusElement = $("status");
+    setText(
+      "seaTemperature",
+      Number.isFinite(
+        Number(marine.sea_surface_temperature)
+      )
+        ? `${safeNumber(
+            marine.sea_surface_temperature,
+            1
+          )}°C`
+        : "Niet beschikbaar"
+    );
 
-    if (statusElement) {
-      statusElement.classList.add("online");
-    }
+    /* Daggegevens */
+
+    const uvIndex = daily.uv_index_max?.[0];
 
     setText(
-      "updated",
-      `bijgewerkt ${new Date().toLocaleTimeString(
+      "uvIndex",
+      safeNumber(uvIndex, 1)
+    );
+
+    setText(
+      "sunrise",
+      formatTime(daily.sunrise?.[0])
+    );
+
+    setText(
+      "sunset",
+      formatTime(daily.sunset?.[0])
+    );
+
+    /* Advies */
+
+    setHtml(
+      "advice",
+      createBeachAdvice(
+        current,
+        marine,
+        uvIndex
+      )
+    );
+
+    /* Footer */
+
+    setText(
+      "lastUpdated",
+      `Bijgewerkt om ${new Date().toLocaleTimeString(
         "nl-NL",
         {
           hour: "2-digit",
@@ -615,37 +813,41 @@ async function loadDashboard() {
       )}`
     );
 
+    setText(
+      "connectionStatus",
+      "Live gegevens actief"
+    );
+
+    const statusElement = byId("status");
+
+    if (statusElement) {
+      statusElement.classList.add("online");
+    }
   } catch (error) {
     console.error("Dashboardfout:", error);
 
     setText(
-      "condition",
-      "Live gegevens tijdelijk niet beschikbaar"
+      "connectionStatus",
+      "Niet alle gegevens zijn beschikbaar"
     );
 
-    setText(
-      "updated",
-      "geen live verbinding"
-    );
-
-    const statusElement = $("status");
+    const statusElement = byId("status");
 
     if (statusElement) {
       statusElement.classList.remove("online");
     }
+
+    updateBeachStatusBanner([]);
   }
 }
 
-updateClock();
-
-setInterval(
-  updateClock,
-  1000
-);
+/* =========================================================
+   STARTEN EN VERVERSEN
+   ========================================================= */
 
 loadDashboard();
 
 setInterval(
   loadDashboard,
-  300000
+  CONFIG.refreshInterval
 );
