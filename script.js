@@ -1,9 +1,12 @@
 "use strict";
 
-/* =========================================================
-   COSMICO BEACH DASHBOARD
-   Zandvoort
-   ========================================================= */
+/*
+  COSMICO BEACH DASHBOARD 2.0
+
+  De Strand App-documentatie die beschikbaar was, gebruikt een staging-API.
+  Vervang alleen CONFIG.beachPostsUrl zodra een officiële productie-URL
+  beschikbaar is.
+*/
 
 const CONFIG = {
   latitude: 52.374,
@@ -15,7 +18,8 @@ const CONFIG = {
     "?latitude=52.374" +
     "&longitude=4.525" +
     "&current=temperature_2m,apparent_temperature,relative_humidity_2m," +
-    "weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m" +
+    "weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m," +
+    "precipitation,visibility" +
     "&hourly=temperature_2m,weather_code,precipitation_probability" +
     "&daily=uv_index_max,sunrise,sunset" +
     "&timezone=Europe%2FAmsterdam" +
@@ -25,68 +29,66 @@ const CONFIG = {
     "https://marine-api.open-meteo.com/v1/marine" +
     "?latitude=52.374" +
     "&longitude=4.525" +
-    "&current=wave_height,wave_direction,wave_period,sea_surface_temperature" +
+    "&current=wave_height,wave_direction,wave_period" +
     "&timezone=Europe%2FAmsterdam",
 
   beachPostsUrl:
     "https://dashboard.staging.strand-app.nl/api/beachposts/v1/overview" +
     "?municipality=zandvoort",
 
-  refreshInterval: 10 * 60 * 1000
+  dataRefreshMs: 10 * 60 * 1000,
+  slideDurationMs: 20 * 1000
 };
 
-/* =========================================================
-   HULPFUNCTIES
-   ========================================================= */
+/*
+  Voeg later promo's toe als extra objecten in deze lijst.
+
+  Voorbeeld afbeelding:
+  {
+    type: "image",
+    title: "Cocktail special",
+    badge: "SPECIAL",
+    src: "assets/aperol.jpg",
+    alt: "Aperol Spritz special"
+  }
+
+  Voorbeeld video:
+  {
+    type: "video",
+    title: "Sunset Session",
+    badge: "VANAVOND",
+    src: "assets/sunset-session.mp4"
+  }
+*/
+const MEDIA_SLIDES = [
+  {
+    type: "youtube",
+    title: "Live vanuit Zandvoort",
+    badge: "LIVE",
+    videoId: "q0-DDh1zdY4"
+  }
+];
+
+let activeSlideIndex = 0;
+let slideTimer = null;
 
 function byId(id) {
   return document.getElementById(id);
 }
 
-function setText(id, value) {
+function setText(id, value, fallback = "—") {
   const element = byId(id);
 
-  if (element) {
-    element.textContent =
-      value === undefined || value === null || value === ""
-        ? "—"
-        : value;
-  }
-}
-
-function setHtml(id, value) {
-  const element = byId(id);
-
-  if (element) {
-    element.innerHTML = value;
-  }
-}
-
-function safeNumber(value, decimals = 0) {
-  const number = Number(value);
-
-  if (!Number.isFinite(number)) {
-    return "—";
+  if (!element) {
+    return;
   }
 
-  return number.toFixed(decimals);
-}
+  const text =
+    value === undefined || value === null || value === ""
+      ? fallback
+      : value;
 
-function formatTime(dateString) {
-  if (!dateString) {
-    return "—";
-  }
-
-  const date = new Date(dateString);
-
-  if (Number.isNaN(date.getTime())) {
-    return "—";
-  }
-
-  return date.toLocaleTimeString("nl-NL", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  element.textContent = text;
 }
 
 function escapeHtml(value) {
@@ -98,52 +100,50 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-/* =========================================================
-   KLOK
-   ========================================================= */
+function numberText(value, decimals = 0) {
+  const number = Number(value);
+
+  return Number.isFinite(number)
+    ? number.toFixed(decimals)
+    : "—";
+}
+
+function formatClockTime(date) {
+  return date.toLocaleTimeString("nl-NL", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function formatApiTime(value) {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : formatClockTime(date);
+}
 
 function updateClock() {
   const now = new Date();
 
-  const timeText = now.toLocaleTimeString("nl-NL", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  setText("clockTime", formatClockTime(now));
 
-  const dateText = now.toLocaleDateString("nl-NL", {
-    weekday: "long",
-    day: "numeric",
-    month: "long"
-  });
-
-  const timeElement =
-    document.getElementById("clockTime") ||
-    document.getElementById("time") ||
-    document.querySelector(".clock strong");
-
-  const dateElement =
-    document.getElementById("clockDate") ||
-    document.getElementById("date") ||
-    document.querySelector(".clock span");
-
-  if (timeElement) {
-    timeElement.textContent = timeText;
-  }
-
-  if (dateElement) {
-    dateElement.textContent = dateText;
-  }
+  setText(
+    "clockDate",
+    now.toLocaleDateString("nl-NL", {
+      weekday: "long",
+      day: "numeric",
+      month: "long"
+    })
+  );
 }
 
-updateClock();
-setInterval(updateClock, 1000);
-
-/* =========================================================
-   WEERCODES
-   ========================================================= */
-
 function weatherInfo(code) {
-  const weatherCodes = {
+  const map = {
     0: ["Onbewolkt", "☀️"],
     1: ["Vrij zonnig", "🌤️"],
     2: ["Halfbewolkt", "⛅"],
@@ -167,46 +167,335 @@ function weatherInfo(code) {
     99: ["Zwaar onweer", "⛈️"]
   };
 
-  return weatherCodes[code] || ["Onbekend", "🌤️"];
+  return map[Number(code)] || ["Onbekend", "🌤️"];
 }
 
-function windDirection(degrees) {
-  if (!Number.isFinite(Number(degrees))) {
+function compassDirection(degrees) {
+  const value = Number(degrees);
+
+  if (!Number.isFinite(value)) {
     return "—";
   }
 
-  const directions = [
-    "N",
-    "NO",
-    "O",
-    "ZO",
-    "Z",
-    "ZW",
-    "W",
-    "NW"
-  ];
-
-  const index = Math.round(Number(degrees) / 45) % 8;
-
-  return directions[index];
+  const labels = ["N", "NO", "O", "ZO", "Z", "ZW", "W", "NW"];
+  return labels[Math.round(value / 45) % 8];
 }
 
-/* =========================================================
-   DATA OPHALEN
-   ========================================================= */
-
 async function fetchJson(url) {
-  const response = await fetch(url, {
-    cache: "no-store"
-  });
+  const response = await fetch(url, { cache: "no-store" });
 
   if (!response.ok) {
-    throw new Error(
-      `HTTP-fout ${response.status} bij ${url}`
-    );
+    throw new Error(`HTTP ${response.status}: ${url}`);
   }
 
   return response.json();
+}
+
+function buildMediaSlide(slide, index) {
+  const activeClass = index === 0 ? " active" : "";
+
+  if (slide.type === "youtube") {
+    const src =
+      `https://www.youtube.com/embed/${encodeURIComponent(slide.videoId)}` +
+      "?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1";
+
+    return `
+      <div class="media-slide${activeClass}" data-slide-index="${index}">
+        <iframe
+          src="${src}"
+          title="${escapeHtml(slide.title)}"
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
+    `;
+  }
+
+  if (slide.type === "image") {
+    return `
+      <div class="media-slide${activeClass}" data-slide-index="${index}">
+        <img src="${escapeHtml(slide.src)}" alt="${escapeHtml(slide.alt || slide.title)}">
+      </div>
+    `;
+  }
+
+  if (slide.type === "video") {
+    return `
+      <div class="media-slide${activeClass}" data-slide-index="${index}">
+        <video autoplay muted loop playsinline>
+          <source src="${escapeHtml(slide.src)}">
+        </video>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="media-slide${activeClass}" data-slide-index="${index}">
+      <div class="promo-slide">
+        <small>${escapeHtml(slide.kicker || "COSMICO BEACH")}</small>
+        <strong>${escapeHtml(slide.title || "Vandaag bij Cosmico")}</strong>
+        <p>${escapeHtml(slide.text || "")}</p>
+      </div>
+    </div>
+  `;
+}
+
+function initMediaSlider() {
+  const slider = byId("mediaSlider");
+  const dots = byId("slideDots");
+
+  if (!slider || !dots || MEDIA_SLIDES.length === 0) {
+    return;
+  }
+
+  slider.innerHTML = MEDIA_SLIDES.map(buildMediaSlide).join("");
+
+  dots.innerHTML = MEDIA_SLIDES.map((_, index) => `
+    <button
+      class="slide-dot${index === 0 ? " active" : ""}"
+      data-dot-index="${index}"
+      aria-label="Ga naar slide ${index + 1}"
+    ></button>
+  `).join("");
+
+  dots.querySelectorAll(".slide-dot").forEach((button) => {
+    button.addEventListener("click", () => {
+      showSlide(Number(button.dataset.dotIndex));
+      restartSlideTimer();
+    });
+  });
+
+  showSlide(0);
+  restartSlideTimer();
+}
+
+function showSlide(index) {
+  if (MEDIA_SLIDES.length === 0) {
+    return;
+  }
+
+  activeSlideIndex =
+    ((index % MEDIA_SLIDES.length) + MEDIA_SLIDES.length) %
+    MEDIA_SLIDES.length;
+
+  document.querySelectorAll(".media-slide").forEach((slide) => {
+    slide.classList.toggle(
+      "active",
+      Number(slide.dataset.slideIndex) === activeSlideIndex
+    );
+  });
+
+  document.querySelectorAll(".slide-dot").forEach((dot) => {
+    dot.classList.toggle(
+      "active",
+      Number(dot.dataset.dotIndex) === activeSlideIndex
+    );
+  });
+
+  const current = MEDIA_SLIDES[activeSlideIndex];
+  setText("mediaTitle", current.title);
+  setText("mediaBadge", current.badge || "ACTUEEL");
+}
+
+function restartSlideTimer() {
+  if (slideTimer) {
+    window.clearInterval(slideTimer);
+  }
+
+  if (MEDIA_SLIDES.length > 1) {
+    slideTimer = window.setInterval(() => {
+      showSlide(activeSlideIndex + 1);
+    }, CONFIG.slideDurationMs);
+  }
+}
+
+function renderHourly(hourly) {
+  const container = byId("hourlyForecast");
+
+  if (!container || !Array.isArray(hourly?.time)) {
+    return;
+  }
+
+  const now = new Date();
+
+  let startIndex = hourly.time.findIndex((value) => {
+    const date = new Date(value);
+    return date >= now;
+  });
+
+  if (startIndex < 0) {
+    startIndex = 0;
+  }
+
+  const cards = [];
+
+  for (
+    let index = startIndex;
+    index < Math.min(startIndex + 6, hourly.time.length);
+    index += 1
+  ) {
+    const date = new Date(hourly.time[index]);
+    const [, icon] = weatherInfo(hourly.weather_code?.[index]);
+
+    cards.push(`
+      <div class="hour">
+        <span class="time">${formatClockTime(date)}</span>
+        <span class="icon">${icon}</span>
+        <strong class="degrees">${numberText(hourly.temperature_2m?.[index])}°</strong>
+        <span class="rain">💧 ${numberText(hourly.precipitation_probability?.[index])}%</span>
+      </div>
+    `);
+  }
+
+  container.innerHTML = cards.join("");
+}
+
+function findPost(posts, terms) {
+  return posts.find((post) => {
+    const name = String(post.name || "").toLowerCase();
+    return terms.some((term) => name.includes(term));
+  });
+}
+
+function renderFlag(post) {
+  if (!post?.flag_status) {
+    return `<div class="no-flag">Geen actieve waarschuwingsvlag gemeld.</div>`;
+  }
+
+  const image = post.flag_img_no_text || post.flag_img || "";
+  const text = post.flag_text || "Waarschuwingsvlag actief";
+  const extended = post.flag_extended_text || "";
+
+  return `
+    <div class="flag-block">
+      ${
+        image
+          ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(text)}">`
+          : `<span style="font-size:1.7vw">🚩</span>`
+      }
+      <div>
+        <strong>${escapeHtml(text)}</strong>
+        ${extended ? `<span>${escapeHtml(extended)}</span>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderRescuePost(post, fallbackName) {
+  if (!post) {
+    return `
+      <article class="rescue-post">
+        <div class="rescue-post-top">
+          <h3>${escapeHtml(fallbackName)}</h3>
+          <div class="lifeguard-status">
+            <span class="status-light"></span>
+            Status onbekend
+          </div>
+        </div>
+        <p class="rescue-state">De actuele status kon niet worden opgehaald.</p>
+        <div class="no-flag">Controleer de vlaggen en aanwijzingen ter plaatse.</div>
+      </article>
+    `;
+  }
+
+  const active = post.state_status === true;
+  const stateText =
+    post.state_text ||
+    post.state ||
+    (active
+      ? "Lifeguards houden toezicht."
+      : "Geen toezicht. Zwemmen op eigen risico.");
+
+  return `
+    <article class="rescue-post">
+      <div class="rescue-post-top">
+        <h3>${escapeHtml(post.name || fallbackName)}</h3>
+
+        <div class="lifeguard-status">
+          <span class="status-light ${active ? "on" : "off"}"></span>
+          ${active ? "Lifeguards aanwezig" : "Geen toezicht"}
+        </div>
+      </div>
+
+      <p class="rescue-state">${escapeHtml(stateText)}</p>
+      ${renderFlag(post)}
+    </article>
+  `;
+}
+
+function renderRescuePosts(posts) {
+  const container = byId("rescuePosts");
+
+  if (!container) {
+    return;
+  }
+
+  const north =
+    findPost(posts, ["zvt noord", "zandvoort noord"]) ||
+    findPost(posts, ["noord"]);
+
+  const south =
+    findPost(posts, ["zvt zuid", "zandvoort zuid"]) ||
+    findPost(posts, ["zuid"]);
+
+  container.innerHTML =
+    renderRescuePost(north, "Reddingspost ZVT Noord") +
+    renderRescuePost(south, "Reddingspost ZVT Zuid");
+}
+
+function buildBeachAdvice(weather, marine, uv) {
+  const temperature = Number(weather.temperature_2m);
+  const wind = Number(weather.wind_speed_10m);
+  const gusts = Number(weather.wind_gusts_10m);
+  const wave = Number(marine.wave_height);
+  const uvIndex = Number(uv);
+  const code = Number(weather.weather_code);
+
+  const parts = [];
+
+  if (code >= 95) {
+    parts.push("Bij onweer direct het strand en het water verlaten.");
+  } else if ([61, 63, 65, 80, 81, 82].includes(code)) {
+    parts.push("Houd rekening met regen of buien.");
+  } else if (temperature >= 22) {
+    parts.push("Heerlijk strandweer.");
+  } else if (temperature < 16) {
+    parts.push("Het is fris aan zee.");
+  } else {
+    parts.push("Prima weer voor een bezoek aan het strand.");
+  }
+
+  if (wind >= 40 || gusts >= 55) {
+    parts.push("Veel wind: zet losse spullen goed vast.");
+  } else if (wind >= 25) {
+    parts.push("Er staat een stevige zeewind.");
+  }
+
+  if (wave >= 1.5) {
+    parts.push("Stevige golven: wees extra voorzichtig in zee.");
+  } else if (wave >= 0.8) {
+    parts.push("Houd rekening met merkbare golfslag.");
+  }
+
+  if (uvIndex >= 6) {
+    parts.push("UV is hoog, dus goed en regelmatig insmeren.");
+  } else if (uvIndex >= 3) {
+    parts.push("Bescherm je huid tegen de zon.");
+  }
+
+  parts.push("De officiële vlaggen en aanwijzingen zijn altijd leidend.");
+
+  return parts.slice(0, 4).join(" ");
+}
+
+function setConnection(online, text) {
+  const wrapper = byId("connectionState");
+
+  if (wrapper) {
+    wrapper.classList.toggle("online", online);
+  }
+
+  setText("connectionText", text);
 }
 
 async function loadBeachPosts() {
@@ -222,457 +511,16 @@ async function loadBeachPosts() {
 
     return data.strandposten;
   } catch (error) {
-    console.error("Strandposten konden niet worden geladen:", error);
+    console.error("Strand App-fout:", error);
     return [];
   }
 }
 
-/* =========================================================
-   REDDINGSPOSTEN TONEN
-   ========================================================= */
-
-function findBeachPost(posts, searchTerm) {
-  const term = searchTerm.toLowerCase();
-
-  return posts.find((post) =>
-    String(post.name || "")
-      .toLowerCase()
-      .includes(term)
-  );
-}
-
-function lifeguardStatus(post) {
-  if (!post) {
-    return {
-      active: false,
-      icon: "⚪",
-      label: "Status niet beschikbaar",
-      text: "De actuele status kon niet worden opgehaald."
-    };
-  }
-
-  const active = post.state_status === true;
-
-  return {
-    active,
-    icon: active ? "🟢" : "⚫",
-    label: active
-      ? "Lifeguards aanwezig"
-      : "Geen toezicht",
-    text:
-      post.state_text ||
-      post.state ||
-      (active
-        ? "Lifeguards houden toezicht."
-        : "Zwemmen op eigen risico.")
-  };
-}
-
-function getFlagInformation(post) {
-  if (!post || post.flag_status !== true) {
-    return null;
-  }
-
-  return {
-    name: post.flag || "Actieve vlag",
-    text:
-      post.flag_text ||
-      "Er is een waarschuwingsvlag actief.",
-    extendedText:
-      post.flag_extended_text || "",
-    image:
-      post.flag_img_no_text ||
-      post.flag_img ||
-      ""
-  };
-}
-
-function beachPostCard(post, fallbackName) {
-  const status = lifeguardStatus(post);
-  const flag = getFlagInformation(post);
-
-  const name = escapeHtml(
-    post?.name || fallbackName
-  );
-
-  const statusText = escapeHtml(status.text);
-
-  let flagHtml = `
-    <div style="
-      margin-top:0.45vh;
-      color:var(--muted);
-      font-size:0.58vw;
-    ">
-      Geen actieve waarschuwingsvlag gemeld
-    </div>
-  `;
-
-  if (flag) {
-    const imageHtml = flag.image
-      ? `
-        <img
-          src="${escapeHtml(flag.image)}"
-          alt="${escapeHtml(flag.name)}"
-          style="
-            width:2.6vw;
-            height:3.8vh;
-            object-fit:contain;
-            flex-shrink:0;
-          "
-        >
-      `
-      : `<span style="font-size:1.4vw;">🚩</span>`;
-
-    flagHtml = `
-      <div style="
-        display:flex;
-        align-items:center;
-        gap:0.55vw;
-        margin-top:0.45vh;
-        padding-top:0.45vh;
-        border-top:1px solid rgba(255,255,255,0.10);
-      ">
-        ${imageHtml}
-
-        <div style="min-width:0;">
-          <strong style="
-            display:block;
-            color:var(--gold);
-            font-size:0.67vw;
-          ">
-            ${escapeHtml(flag.text)}
-          </strong>
-
-          ${
-            flag.extendedText
-              ? `
-                <span style="
-                  display:block;
-                  margin-top:0.15vh;
-                  color:var(--muted);
-                  font-size:0.5vw;
-                  line-height:1.2;
-                ">
-                  ${escapeHtml(flag.extendedText)}
-                </span>
-              `
-              : ""
-          }
-        </div>
-      </div>
-    `;
-  }
-
-  return `
-    <div style="
-      min-width:0;
-      height:100%;
-      padding:0.75vh 0.8vw;
-      border-radius:0.7vw;
-      background:rgba(255,255,255,0.07);
-      border:1px solid rgba(255,255,255,0.06);
-      overflow:hidden;
-    ">
-      <div style="
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        gap:0.5vw;
-      ">
-        <strong style="
-          color:var(--cream);
-          font-size:0.78vw;
-          line-height:1.1;
-        ">
-          ${name}
-        </strong>
-
-        <span style="
-          flex-shrink:0;
-          font-size:0.72vw;
-          font-weight:900;
-          color:${status.active ? "var(--green)" : "var(--cream-soft)"};
-        ">
-          ${status.icon}
-          ${escapeHtml(status.label)}
-        </span>
-      </div>
-
-      <div style="
-        margin-top:0.35vh;
-        color:var(--cream-soft);
-        font-size:0.56vw;
-        line-height:1.25;
-      ">
-        ${statusText}
-      </div>
-
-      ${flagHtml}
-    </div>
-  `;
-}
-
-function updateBeachStatusBanner(posts) {
-  const beachStatus = byId("beachStatus");
-
-  if (!beachStatus) {
-    return;
-  }
-
-  const north =
-    findBeachPost(posts, "zvt noord") ||
-    findBeachPost(posts, "noord");
-
-  const south =
-    findBeachPost(posts, "zvt zuid") ||
-    findBeachPost(posts, "zuid");
-
-  const hasPosts = north || south;
-
-  beachStatus.innerHTML = `
-    <div class="beach-status-icon">
-      🛟
-    </div>
-
-    <div class="beach-status-content">
-      <div class="beach-status-label">
-        ACTUELE INFORMATIE STRAND APP
-      </div>
-
-      <div style="
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:1vw;
-        margin-bottom:0.55vh;
-      ">
-        <h2 style="margin:0;">
-          Reddingsbrigade Zandvoort
-        </h2>
-
-        <span style="
-          color:var(--muted);
-          font-size:0.5vw;
-          white-space:nowrap;
-        ">
-          Live status van beide strandposten
-        </span>
-      </div>
-
-      ${
-        hasPosts
-          ? `
-            <div style="
-              display:grid;
-              grid-template-columns:1fr 1fr;
-              gap:0.7vw;
-              height:7.1vh;
-            ">
-              ${beachPostCard(
-                north,
-                "Reddingspost ZVT Noord"
-              )}
-
-              ${beachPostCard(
-                south,
-                "Reddingspost ZVT Zuid"
-              )}
-            </div>
-          `
-          : `
-            <div style="
-              padding:0.8vh 0.8vw;
-              border-radius:0.7vw;
-              background:rgba(255,255,255,0.07);
-              color:var(--cream-soft);
-              font-size:0.7vw;
-            ">
-              De actuele reddingsbrigadestatus kon niet worden opgehaald.
-              Volg altijd de vlaggen en aanwijzingen op het strand.
-            </div>
-          `
-      }
-    </div>
-  `;
-}
-
-/* =========================================================
-   UURVERWACHTING
-   ========================================================= */
-
-function renderHourlyForecast(hourly) {
-  const container = byId("hourlyForecast");
-
-  if (!container || !hourly?.time) {
-    return;
-  }
-
-  const now = new Date();
-  const currentHour = now.getHours();
-
-  let startIndex = hourly.time.findIndex((time) => {
-    const date = new Date(time);
-
-    return (
-      date.getDate() === now.getDate() &&
-      date.getHours() >= currentHour
-    );
-  });
-
-  if (startIndex < 0) {
-    startIndex = 0;
-  }
-
-  const items = [];
-
-  for (
-    let index = startIndex;
-    index < Math.min(startIndex + 6, hourly.time.length);
-    index += 1
-  ) {
-    const date = new Date(hourly.time[index]);
-    const [, icon] = weatherInfo(
-      hourly.weather_code?.[index]
-    );
-
-    items.push(`
-      <div class="hour">
-        <div class="time">
-          ${date.toLocaleTimeString("nl-NL", {
-            hour: "2-digit",
-            minute: "2-digit"
-          })}
-        </div>
-
-        <div class="icon">${icon}</div>
-
-        <div class="degrees">
-          ${safeNumber(
-            hourly.temperature_2m?.[index],
-            0
-          )}°
-        </div>
-
-        <div class="rain">
-          💧 ${safeNumber(
-            hourly.precipitation_probability?.[index],
-            0
-          )}%
-        </div>
-      </div>
-    `);
-  }
-
-  container.innerHTML = items.join("");
-}
-
-/* =========================================================
-   STRANDADVIES
-   ========================================================= */
-
-function createBeachAdvice(weather, marine, uvIndex) {
-  const temperature = Number(weather.temperature_2m);
-  const windSpeed = Number(weather.wind_speed_10m);
-  const gusts = Number(weather.wind_gusts_10m);
-  const waveHeight = Number(marine.wave_height);
-  const uv = Number(uvIndex);
-  const weatherCode = Number(weather.weather_code);
-
-  const warnings = [];
-  const positives = [];
-
-  if (weatherCode >= 95) {
-    warnings.push(
-      "Onweer mogelijk. Ga bij onweer direct van het strand."
-    );
-  } else if (
-    [61, 63, 65, 80, 81, 82].includes(weatherCode)
-  ) {
-    warnings.push("Houd rekening met regen of buien.");
-  }
-
-  if (windSpeed >= 40 || gusts >= 55) {
-    warnings.push(
-      "Er staat veel wind. Losse spullen kunnen wegwaaien."
-    );
-  } else if (windSpeed >= 25) {
-    warnings.push(
-      "Het is behoorlijk winderig op het strand."
-    );
-  } else {
-    positives.push("De wind is redelijk rustig.");
-  }
-
-  if (waveHeight >= 1.5) {
-    warnings.push(
-      "Er staan stevige golven. Wees extra voorzichtig in zee."
-    );
-  } else if (waveHeight >= 0.8) {
-    warnings.push(
-      "Er is merkbare golfslag. Houd kinderen goed in de gaten."
-    );
-  } else {
-    positives.push("De golfhoogte is beperkt.");
-  }
-
-  if (uv >= 6) {
-    warnings.push(
-      "De UV-straling is hoog. Smeer regelmatig met zonnebrand."
-    );
-  } else if (uv >= 3) {
-    warnings.push(
-      "Bescherm je huid tegen de zon."
-    );
-  }
-
-  if (temperature >= 22) {
-    positives.push(
-      "Het is een aangename strandtemperatuur."
-    );
-  } else if (temperature < 16) {
-    warnings.push(
-      "Het voelt fris aan op het strand."
-    );
-  }
-
-  if (warnings.length === 0) {
-    return `
-      <strong>Goed strandweer</strong>
-      <small>
-        ${escapeHtml(
-          positives.join(" ")
-        )}
-        Blijf altijd letten op de vlaggen en aanwijzingen van de lifeguards.
-      </small>
-    `;
-  }
-
-  return `
-    <strong>${escapeHtml(warnings[0])}</strong>
-    <small>
-      ${escapeHtml(
-        [...warnings.slice(1), ...positives]
-          .slice(0, 3)
-          .join(" ")
-      )}
-      De officiële strandstatus hierboven is altijd leidend.
-    </small>
-  `;
-}
-
-/* =========================================================
-   DASHBOARD LADEN
-   ========================================================= */
-
 async function loadDashboard() {
-  setText("connectionStatus", "Gegevens worden bijgewerkt...");
+  setConnection(false, "Gegevens laden…");
 
   try {
-    const [
-      weatherData,
-      marineData,
-      beachPosts
-    ] = await Promise.all([
+    const [weatherData, marineData, beachPosts] = await Promise.all([
       fetchJson(CONFIG.weatherUrl),
       fetchJson(CONFIG.marineUrl),
       loadBeachPosts()
@@ -683,183 +531,58 @@ async function loadDashboard() {
     const daily = weatherData.daily || {};
     const marine = marineData.current || {};
 
-    const [description, icon] =
-      weatherInfo(current.weather_code);
+    const [description, icon] = weatherInfo(current.weather_code);
+    const uv = daily.uv_index_max?.[0];
 
-    /* Reddingsbrigade */
+    setText("weatherIcon", icon);
+    setText("headerWeatherIcon", icon);
+    setText("temperature", `${numberText(current.temperature_2m)}°`);
+    setText("headerTemperature", `${numberText(current.temperature_2m)}°`);
+    setText("condition", description);
+    setText("headerCondition", description);
 
-    updateBeachStatusBanner(beachPosts);
-
-    /* Huidig weer */
-
-    setText(
-      "weatherIcon",
-      icon
-    );
-
-    setText(
-      "temperature",
-      `${safeNumber(current.temperature_2m, 0)}°`
-    );
-
-    setText(
-      "condition",
-      description
-    );
-
-    setText(
-      "feelsLike",
-      `${safeNumber(
-        current.apparent_temperature,
-        0
-      )}°C`
-    );
-
-    setText(
-      "humidity",
-      `${safeNumber(
-        current.relative_humidity_2m,
-        0
-      )}%`
-    );
-
+    setText("feelsLike", `${numberText(current.apparent_temperature)}°C`);
     setText(
       "wind",
-      `${safeNumber(
-        current.wind_speed_10m,
-        0
-      )} km/u ${windDirection(
-        current.wind_direction_10m
-      )}`
+      `${numberText(current.wind_speed_10m)} km/u ${compassDirection(current.wind_direction_10m)}`
     );
+    setText("windGusts", `${numberText(current.wind_gusts_10m)} km/u`);
+    setText("uvIndex", numberText(uv, 1));
+    setText("precipitation", `${numberText(current.precipitation, 1)} mm`);
 
+    const visibilityKm = Number(current.visibility) / 1000;
     setText(
-      "windGusts",
-      `${safeNumber(
-        current.wind_gusts_10m,
-        0
-      )} km/u`
+      "visibility",
+      Number.isFinite(visibilityKm)
+        ? `${visibilityKm.toFixed(0)} km`
+        : "—"
     );
 
-    /* Uurverwachting */
+    setText("humidity", `${numberText(current.relative_humidity_2m)}%`);
+    setText("waveHeight", `${numberText(marine.wave_height, 1)} m`);
+    setText("waveDirection", compassDirection(marine.wave_direction));
+    setText("wavePeriod", `${numberText(marine.wave_period, 1)} sec`);
+    setText("sunset", formatApiTime(daily.sunset?.[0]));
 
-    renderHourlyForecast(hourly);
+    renderHourly(hourly);
+    renderRescuePosts(beachPosts);
 
-    /* Zee */
-
-    setText(
-      "waveHeight",
-      `${safeNumber(
-        marine.wave_height,
-        1
-      )} m`
-    );
-
-    setText(
-      "wavePeriod",
-      `${safeNumber(
-        marine.wave_period,
-        1
-      )} sec`
-    );
-
-    setText(
-      "waveDirection",
-      windDirection(
-        marine.wave_direction
-      )
-    );
-
-    setText(
-      "seaTemperature",
-      Number.isFinite(
-        Number(marine.sea_surface_temperature)
-      )
-        ? `${safeNumber(
-            marine.sea_surface_temperature,
-            1
-          )}°C`
-        : "Niet beschikbaar"
-    );
-
-    /* Daggegevens */
-
-    const uvIndex = daily.uv_index_max?.[0];
-
-    setText(
-      "uvIndex",
-      safeNumber(uvIndex, 1)
-    );
-
-    setText(
-      "sunrise",
-      formatTime(daily.sunrise?.[0])
-    );
-
-    setText(
-      "sunset",
-      formatTime(daily.sunset?.[0])
-    );
-
-    /* Advies */
-
-    setHtml(
-      "advice",
-      createBeachAdvice(
-        current,
-        marine,
-        uvIndex
-      )
-    );
-
-    /* Footer */
-
-    setText(
-      "lastUpdated",
-      `Bijgewerkt om ${new Date().toLocaleTimeString(
-        "nl-NL",
-        {
-          hour: "2-digit",
-          minute: "2-digit"
-        }
-      )}`
-    );
-
-    setText(
-      "connectionStatus",
-      "Live gegevens actief"
-    );
-
-    const statusElement = byId("status");
-
-    if (statusElement) {
-      statusElement.classList.add("online");
-    }
+    setText("beachAdvice", buildBeachAdvice(current, marine, uv));
+    setConnection(true, `Bijgewerkt ${formatClockTime(new Date())}`);
   } catch (error) {
     console.error("Dashboardfout:", error);
-
+    setConnection(false, "Niet alle gegevens beschikbaar");
     setText(
-      "connectionStatus",
-      "Niet alle gegevens zijn beschikbaar"
+      "beachAdvice",
+      "Niet alle live gegevens konden worden opgehaald. Volg de officiële informatie ter plaatse."
     );
-
-    const statusElement = byId("status");
-
-    if (statusElement) {
-      statusElement.classList.remove("online");
-    }
-
-    updateBeachStatusBanner([]);
+    renderRescuePosts([]);
   }
 }
 
-/* =========================================================
-   STARTEN EN VERVERSEN
-   ========================================================= */
+updateClock();
+window.setInterval(updateClock, 1000);
 
+initMediaSlider();
 loadDashboard();
-
-setInterval(
-  loadDashboard,
-  CONFIG.refreshInterval
-);
+window.setInterval(loadDashboard, CONFIG.dataRefreshMs);
