@@ -31,13 +31,13 @@ const CONFIG = {
     "&current=wave_height,wave_direction,wave_period" +
     "&timezone=Europe%2FAmsterdam",
 
- beachPostsUrl:
-  "https://dashboard.strand-app.nl/api/beachposts/v1/overview" +
-  "?municipality=zandvoort",
+  beachPostsUrl:
+    "https://dashboard.strand-app.nl/api/beachposts/v1/overview" +
+    "?municipality=zandvoort",
 
-dataRefreshMs: 10 * 60 * 1000,
-retryDelayMs: 60 * 1000,
-slideDurationMs: 20 * 1000
+  dataRefreshMs: 10 * 60 * 1000,
+  retryDelayMs: 60 * 1000,
+  slideDurationMs: 20 * 1000
 };
 
 /*
@@ -483,9 +483,11 @@ function buildBeachAdvice(weather, marine, uv) {
     parts.push("Bescherm je huid tegen de zon.");
   }
 
-  parts.push("De officiële vlaggen en aanwijzingen zijn altijd leidend.");
+  // De disclaimer krijgt een vaste plek en kan nooit wegvallen door de
+  // slice hieronder, ook niet als alle andere condities tegelijk gelden.
+  const disclaimer = "De officiële vlaggen en aanwijzingen zijn altijd leidend.";
 
-  return parts.slice(0, 4).join(" ");
+  return parts.slice(0, 3).concat(disclaimer).join(" ");
 }
 
 function setConnection(online, text) {
@@ -497,7 +499,8 @@ function setConnection(online, text) {
 
   setText("connectionText", text);
 }
-let retryTimer = null;
+
+let dashboardTimer = null;
 
 async function loadWeatherData() {
   try {
@@ -535,14 +538,12 @@ async function loadBeachPosts() {
   }
 }
 
-function scheduleRetry() {
-  if (retryTimer) {
-    window.clearTimeout(retryTimer);
+function scheduleNextLoad(delayMs) {
+  if (dashboardTimer) {
+    window.clearTimeout(dashboardTimer);
   }
 
-  retryTimer = window.setTimeout(() => {
-    loadDashboard();
-  }, CONFIG.retryDelayMs);
+  dashboardTimer = window.setTimeout(loadDashboard, delayMs);
 }
 
 async function loadDashboard() {
@@ -631,19 +632,18 @@ async function loadDashboard() {
 
   if (loadedParts === 3) {
     setConnection(true, `Bijgewerkt ${formatClockTime(new Date())}`);
+    scheduleNextLoad(CONFIG.dataRefreshMs);
   } else if (loadedParts > 0) {
     setConnection(false, "Deels bijgewerkt");
-    scheduleRetry();
+    scheduleNextLoad(CONFIG.retryDelayMs);
   } else {
     setConnection(false, "Live gegevens niet beschikbaar");
-    scheduleRetry();
+    scheduleNextLoad(CONFIG.retryDelayMs);
   }
 }
-
 
 updateClock();
 window.setInterval(updateClock, 1000);
 
 initMediaSlider();
 loadDashboard();
-window.setInterval(loadDashboard, CONFIG.dataRefreshMs);
