@@ -33,7 +33,7 @@ const CONFIG = {
     "&timezone=Europe%2FAmsterdam",
 
   beachPostsUrl:
-    "https://dashboard.staging.strand-app.nl/api/beachposts/v1/overview" +
+    "https://dashboard.strand-app.nl/api/beachposts/v1/overview" +
     "?municipality=zandvoort",
 
   dataRefreshMs: 10 * 60 * 1000,
