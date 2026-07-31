@@ -1,11 +1,10 @@
 "use strict";
 
 /*
-  COSMICO BEACH DASHBOARD 2.0
+  COSMICO BEACH DASHBOARD
 
-  De Strand App-documentatie die beschikbaar was, gebruikt een staging-API.
-  Vervang alleen CONFIG.beachPostsUrl zodra een officiële productie-URL
-  beschikbaar is.
+  Live dashboard voor Cosmico Beach.
+  Gebruikt Open-Meteo en de productie-API van Strand App.
 */
 
 const CONFIG = {
@@ -32,12 +31,13 @@ const CONFIG = {
     "&current=wave_height,wave_direction,wave_period" +
     "&timezone=Europe%2FAmsterdam",
 
-  beachPostsUrl:
-    "https://dashboard.strand-app.nl/api/beachposts/v1/overview" +
-    "?municipality=zandvoort",
+ beachPostsUrl:
+  "https://dashboard.strand-app.nl/api/beachposts/v1/overview" +
+  "?municipality=zandvoort",
 
-  dataRefreshMs: 10 * 60 * 1000,
-  slideDurationMs: 20 * 1000
+dataRefreshMs: 10 * 60 * 1000,
+retryDelayMs: 60 * 1000,
+slideDurationMs: 20 * 1000
 };
 
 /*
@@ -497,6 +497,25 @@ function setConnection(online, text) {
 
   setText("connectionText", text);
 }
+let retryTimer = null;
+
+async function loadWeatherData() {
+  try {
+    return await fetchJson(CONFIG.weatherUrl);
+  } catch (error) {
+    console.error("Weerdata-fout:", error);
+    return null;
+  }
+}
+
+async function loadMarineData() {
+  try {
+    return await fetchJson(CONFIG.marineUrl);
+  } catch (error) {
+    console.error("Marinedata-fout:", error);
+    return null;
+  }
+}
 
 async function loadBeachPosts() {
   try {
@@ -512,25 +531,37 @@ async function loadBeachPosts() {
     return data.strandposten;
   } catch (error) {
     console.error("Strand App-fout:", error);
-    return [];
+    return null;
   }
+}
+
+function scheduleRetry() {
+  if (retryTimer) {
+    window.clearTimeout(retryTimer);
+  }
+
+  retryTimer = window.setTimeout(() => {
+    loadDashboard();
+  }, CONFIG.retryDelayMs);
 }
 
 async function loadDashboard() {
   setConnection(false, "Gegevens laden…");
 
-  try {
-    const [weatherData, marineData, beachPosts] = await Promise.all([
-      fetchJson(CONFIG.weatherUrl),
-      fetchJson(CONFIG.marineUrl),
-      loadBeachPosts()
-    ]);
+  const [weatherData, marineData, beachPosts] = await Promise.all([
+    loadWeatherData(),
+    loadMarineData(),
+    loadBeachPosts()
+  ]);
+
+  let loadedParts = 0;
+
+  if (weatherData) {
+    loadedParts += 1;
 
     const current = weatherData.current || {};
     const hourly = weatherData.hourly || {};
     const daily = weatherData.daily || {};
-    const marine = marineData.current || {};
-
     const [description, icon] = weatherInfo(current.weather_code);
     const uv = daily.uv_index_max?.[0];
 
@@ -544,13 +575,16 @@ async function loadDashboard() {
     setText("feelsLike", `${numberText(current.apparent_temperature)}°C`);
     setText(
       "wind",
-      `${numberText(current.wind_speed_10m)} km/u ${compassDirection(current.wind_direction_10m)}`
+      `${numberText(current.wind_speed_10m)} km/u ${compassDirection(
+        current.wind_direction_10m
+      )}`
     );
     setText("windGusts", `${numberText(current.wind_gusts_10m)} km/u`);
     setText("uvIndex", numberText(uv, 1));
     setText("precipitation", `${numberText(current.precipitation, 1)} mm`);
 
     const visibilityKm = Number(current.visibility) / 1000;
+
     setText(
       "visibility",
       Number.isFinite(visibilityKm)
@@ -559,26 +593,53 @@ async function loadDashboard() {
     );
 
     setText("humidity", `${numberText(current.relative_humidity_2m)}%`);
-    setText("waveHeight", `${numberText(marine.wave_height, 1)} m`);
-    setText("waveDirection", compassDirection(marine.wave_direction));
-    setText("wavePeriod", `${numberText(marine.wave_period, 1)} sec`);
     setText("sunset", formatApiTime(daily.sunset?.[0]));
 
     renderHourly(hourly);
-    renderRescuePosts(beachPosts);
+  }
 
+  if (marineData) {
+    loadedParts += 1;
+
+    const marine = marineData.current || {};
+
+    setText("waveHeight", `${numberText(marine.wave_height, 1)} m`);
+    setText("waveDirection", compassDirection(marine.wave_direction));
+    setText("wavePeriod", `${numberText(marine.wave_period, 1)} sec`);
+  }
+
+  if (Array.isArray(beachPosts)) {
+    loadedParts += 1;
+    renderRescuePosts(beachPosts);
+  } else {
+    renderRescuePosts([]);
+  }
+
+  const current = weatherData?.current || {};
+  const daily = weatherData?.daily || {};
+  const marine = marineData?.current || {};
+  const uv = daily.uv_index_max?.[0];
+
+  if (weatherData || marineData) {
     setText("beachAdvice", buildBeachAdvice(current, marine, uv));
-    setConnection(true, `Bijgewerkt ${formatClockTime(new Date())}`);
-  } catch (error) {
-    console.error("Dashboardfout:", error);
-    setConnection(false, "Niet alle gegevens beschikbaar");
+  } else {
     setText(
       "beachAdvice",
       "Niet alle live gegevens konden worden opgehaald. Volg de officiële informatie ter plaatse."
     );
-    renderRescuePosts([]);
+  }
+
+  if (loadedParts === 3) {
+    setConnection(true, `Bijgewerkt ${formatClockTime(new Date())}`);
+  } else if (loadedParts > 0) {
+    setConnection(false, "Deels bijgewerkt");
+    scheduleRetry();
+  } else {
+    setConnection(false, "Live gegevens niet beschikbaar");
+    scheduleRetry();
   }
 }
+
 
 updateClock();
 window.setInterval(updateClock, 1000);
