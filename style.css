@@ -125,7 +125,7 @@ body::after {
 
 .topbar-summary > span:last-child {
   color: var(--cream-soft);
-  font-size: 0.7vw;
+  font-size: clamp(10px, 0.7vw, 14px);
 }
 
 .clock {
@@ -142,7 +142,7 @@ body::after {
   display: block;
   margin-top: 0.65vh;
   color: var(--cream-soft);
-  font-size: 0.72vw;
+  font-size: clamp(11px, 0.72vw, 15px);
   text-transform: capitalize;
 }
 
@@ -210,7 +210,7 @@ body::after {
 .location {
   margin: 0.45vh 0 0;
   color: var(--cream-soft);
-  font-size: 0.72vw;
+  font-size: clamp(11px, 0.72vw, 15px);
 }
 
 .metric-grid {
@@ -230,7 +230,7 @@ body::after {
 .metric span {
   display: block;
   color: var(--cream-soft);
-  font-size: 0.58vw;
+  font-size: clamp(9px, 0.58vw, 13px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -238,7 +238,7 @@ body::after {
 .metric strong {
   display: block;
   margin-top: 0.25vh;
-  font-size: 1vw;
+  font-size: clamp(13px, 1vw, 20px);
   white-space: nowrap;
 }
 
@@ -274,7 +274,7 @@ body::after {
   border-radius: 999px;
   color: var(--cream-soft);
   background: rgba(255, 255, 255, 0.065);
-  font-size: 0.58vw;
+  font-size: clamp(9px, 0.58vw, 13px);
   font-weight: 800;
   letter-spacing: 0.1em;
 }
@@ -337,7 +337,7 @@ body::after {
 
 .promo-slide small {
   color: var(--gold);
-  font-size: 0.7vw;
+  font-size: clamp(10px, 0.7vw, 14px);
   font-weight: 900;
   letter-spacing: 0.16em;
 }
@@ -351,7 +351,7 @@ body::after {
 .promo-slide p {
   margin: 0.7vh 0 0;
   color: var(--cream-soft);
-  font-size: 0.85vw;
+  font-size: clamp(12px, 0.85vw, 16px);
 }
 
 .slide-dots {
@@ -404,7 +404,7 @@ body::after {
 
 .hour .time {
   color: var(--cream-soft);
-  font-size: 0.58vw;
+  font-size: clamp(9px, 0.58vw, 13px);
 }
 
 .hour .icon {
@@ -418,7 +418,7 @@ body::after {
 
 .hour .rain {
   color: #bfe7ff;
-  font-size: 0.55vw;
+  font-size: clamp(9px, 0.55vw, 12px);
 }
 
 .rescue-card {
@@ -456,7 +456,7 @@ body::after {
 
 .rescue-post h3 {
   margin: 0;
-  font-size: 0.92vw;
+  font-size: clamp(12px, 0.92vw, 18px);
 }
 
 .lifeguard-status {
@@ -464,7 +464,7 @@ body::after {
   display: inline-flex;
   align-items: center;
   gap: 0.32vw;
-  font-size: 0.66vw;
+  font-size: clamp(10px, 0.66vw, 14px);
   font-weight: 900;
 }
 
@@ -488,7 +488,7 @@ body::after {
 .rescue-state {
   margin: 0.6vh 0 0;
   color: var(--cream-soft);
-  font-size: 0.64vw;
+  font-size: clamp(10px, 0.64vw, 14px);
   line-height: 1.25;
 }
 
@@ -511,7 +511,7 @@ body::after {
 .flag-block strong {
   display: block;
   color: var(--gold);
-  font-size: 0.68vw;
+  font-size: clamp(10px, 0.68vw, 14px);
   line-height: 1.2;
 }
 
@@ -519,7 +519,7 @@ body::after {
   display: block;
   margin-top: 0.18vh;
   color: var(--cream-soft);
-  font-size: 0.52vw;
+  font-size: clamp(9px, 0.52vw, 12px);
   line-height: 1.2;
 }
 
@@ -528,13 +528,13 @@ body::after {
   padding-top: 0.65vh;
   border-top: 1px solid var(--line);
   color: var(--cream-soft);
-  font-size: 0.55vw;
+  font-size: clamp(9px, 0.55vw, 12px);
 }
 
 .rescue-disclaimer {
   margin: 0.55vh 0 0;
   color: var(--cream-soft);
-  font-size: 0.5vw;
+  font-size: clamp(9px, 0.5vw, 11px);
 }
 
 .rescue-loading {
@@ -542,7 +542,7 @@ body::after {
   display: grid;
   place-items: center;
   color: var(--cream-soft);
-  font-size: 0.72vw;
+  font-size: clamp(11px, 0.72vw, 15px);
 }
 
 .conditions-strip {
@@ -572,7 +572,7 @@ body::after {
 .condition-item small {
   display: block;
   color: var(--cream-soft);
-  font-size: 0.55vw;
+  font-size: clamp(9px, 0.55vw, 12px);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -580,7 +580,7 @@ body::after {
 .condition-item strong {
   display: block;
   margin-top: 0.25vh;
-  font-size: 0.92vw;
+  font-size: clamp(12px, 0.92vw, 18px);
   white-space: nowrap;
 }
 
@@ -612,7 +612,7 @@ body::after {
 .advice-bar small {
   display: block;
   color: var(--orange);
-  font-size: 0.55vw;
+  font-size: clamp(9px, 0.55vw, 12px);
   font-weight: 900;
   letter-spacing: 0.14em;
 }
@@ -620,7 +620,7 @@ body::after {
 .advice-bar strong {
   display: block;
   margin-top: 0.28vh;
-  font-size: 0.86vw;
+  font-size: clamp(12px, 0.86vw, 17px);
   line-height: 1.25;
 }
 
@@ -629,7 +629,7 @@ footer {
   justify-content: space-between;
   align-items: center;
   color: var(--cream-soft);
-  font-size: 0.55vw;
+  font-size: clamp(9px, 0.55vw, 12px);
 }
 
 .connection-state {
@@ -667,5 +667,129 @@ footer {
 
   .topbar {
     grid-template-columns: 1fr 0.7fr;
+  }
+}
+
+/*
+  Losse mobiele weergave (telefoon in portret, bv. dashboard.cosmicobeach.nl
+  bezocht in Safari). De vw/vh-gebaseerde kiosk-layout hierboven is getekend
+  voor een vast breed scherm; op smalle viewports knijpen dezelfde
+  verhoudingen tekst en kaarten tot overlappende regels. Vanaf hier krijgt
+  mobiel daarom een eigen, gestapelde en scrollbare layout met vaste
+  px-groottes in plaats van vw/vh-schaling.
+*/
+@media (max-width: 700px) {
+  html,
+  body {
+    height: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  #app {
+    width: 100%;
+    height: auto;
+    min-height: 100vh;
+    display: block;
+    padding: 16px;
+  }
+
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .topbar-summary {
+    display: none;
+  }
+
+  .clock {
+    text-align: left;
+  }
+
+  .clock strong,
+  .brand-block h1 {
+    font-size: 34px;
+  }
+
+  .dashboard {
+    display: block;
+  }
+
+  .card {
+    margin-bottom: 16px;
+  }
+
+  .current-card {
+    padding: 16px;
+  }
+
+  .current-layout {
+    height: auto;
+    display: block;
+  }
+
+  .temperature {
+    font-size: 64px;
+  }
+
+  .metric-grid {
+    margin-top: 16px;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .metric span {
+    font-size: 11px;
+  }
+
+  .metric strong {
+    font-size: 15px;
+  }
+
+  .media-card {
+    padding: 16px;
+  }
+
+  .media-slider {
+    margin-top: 12px;
+    aspect-ratio: 16 / 9;
+    height: auto;
+  }
+
+  .forecast-card,
+  .rescue-card {
+    padding: 16px;
+  }
+
+  .hourly-forecast {
+    height: auto;
+    grid-template-columns: repeat(3, 1fr);
+    row-gap: 8px;
+  }
+
+  .hour .time,
+  .hour .rain {
+    font-size: 11px;
+  }
+
+  .rescue-posts {
+    grid-template-columns: 1fr;
+  }
+
+  .conditions-strip {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 8px;
+  }
+
+  .advice-bar {
+    flex-wrap: wrap;
+  }
+
+  footer {
+    font-size: 11px;
   }
 }
