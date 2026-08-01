@@ -433,7 +433,7 @@ function renderRescuePost(post, fallbackName) {
   return `
     <article class="rescue-post ${active ? "is-open" : "is-closed"}">
       <div class="rescue-post-top">
-        <h3>${escapeHtml(post.name || fallbackName)}</h3>
+        <h3>${escapeHtml(fallbackName)}</h3>
 
         <div class="lifeguard-status ${active ? "open" : "closed"}">
           <span class="status-light ${active ? "on" : "off"}"></span>
@@ -463,8 +463,8 @@ function renderRescuePosts(posts) {
     findPost(posts, ["zuid"]);
 
   container.innerHTML =
-    renderRescuePost(north, "Reddingspost ZVT Noord") +
-    renderRescuePost(south, "Reddingspost ZVT Zuid");
+  renderRescuePost(north, "▲ NOORD") +
+  renderRescuePost(south, "▼ ZUID");
 }
 
 function buildBeachAdvice(weather, marine, uv) {
