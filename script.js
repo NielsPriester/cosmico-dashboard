@@ -401,16 +401,50 @@ function renderRescuePost(post, fallbackName) {
       <article class="rescue-post">
         <div class="rescue-post-top">
           <h3>${escapeHtml(fallbackName)}</h3>
-          <div class="lifeguard-status">
+
+          <div class="lifeguard-status unknown">
             <span class="status-light"></span>
-            Status onbekend
+            STATUS ONBEKEND
           </div>
         </div>
-        <p class="rescue-state">De actuele status kon niet worden opgehaald.</p>
-        <div class="no-flag">Controleer de vlaggen en aanwijzingen ter plaatse.</div>
+
+        <p class="rescue-state">
+          De actuele status kon niet worden opgehaald.
+        </p>
+
+        <div class="no-flag">
+          Controleer altijd de vlaggen en aanwijzingen ter plaatse.
+        </div>
       </article>
     `;
   }
+
+  const active = post.state_status === true;
+
+  const stateText =
+    post.state_text ||
+    post.state ||
+    (active
+      ? "Lifeguards houden toezicht."
+      : "Geen toezicht. Zwemmen op eigen risico.");
+
+  return `
+    <article class="rescue-post ${active ? "is-open" : "is-closed"}">
+      <div class="rescue-post-top">
+        <h3>${escapeHtml(post.name || fallbackName)}</h3>
+
+        <div class="lifeguard-status ${active ? "open" : "closed"}">
+          <span class="status-light ${active ? "on" : "off"}"></span>
+          ${active ? "BEWAAKT" : "GEEN TOEZICHT"}
+        </div>
+      </div>
+
+      <p class="rescue-state">${escapeHtml(stateText)}</p>
+
+      ${renderFlag(post)}
+    </article>
+  `;
+}
 
   const active = post.state_status === true;
   const stateText =

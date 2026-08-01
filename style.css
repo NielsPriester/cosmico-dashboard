@@ -793,3 +793,51 @@ footer {
     font-size: 11px;
   }
 }
+/* Reddingsbrigade 2.1 */
+
+.lifeguard-status {
+  padding: 0.45vh 0.55vw;
+  border-radius: 999px;
+  font-size: clamp(10px, 0.7vw, 14px);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.lifeguard-status.open {
+  color: #d9ffeb;
+  background: rgba(130, 216, 173, 0.16);
+  border: 1px solid rgba(130, 216, 173, 0.35);
+}
+
+.lifeguard-status.closed {
+  color: #ffd8d3;
+  background: rgba(255, 114, 98, 0.15);
+  border: 1px solid rgba(255, 114, 98, 0.35);
+}
+
+.lifeguard-status.unknown {
+  color: var(--cream-soft);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+}
+
+.rescue-post.is-open {
+  border-color: rgba(130, 216, 173, 0.28);
+}
+
+.rescue-post.is-closed {
+  border-color: rgba(255, 114, 98, 0.25);
+}
+
+@media (max-width: 700px) {
+  .rescue-post-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .lifeguard-status {
+    padding: 6px 9px;
+    font-size: 12px;
+  }
+}
