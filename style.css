@@ -793,10 +793,61 @@ footer {
     font-size: 11px;
   }
 }
-/* Reddingsbrigade 2.1 */
+
+
+/* =========================================================
+   COSMICO BEACH DASHBOARD 2.1
+   Getijden, zeetemperatuur, grotere webcam en strandveiligheid
+   ========================================================= */
+
+.dashboard {
+  grid-template-columns: 0.85fr 1.15fr;
+  grid-template-rows: minmax(0, 1.18fr) minmax(0, 0.82fr) 9.2vh 7.8vh;
+}
+
+.media-card {
+  padding: 1.35vh 1vw 0.9vh;
+}
+
+.media-slider {
+  margin-top: 0.7vh;
+}
+
+.conditions-strip {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 0.55vw;
+}
+
+.condition-item {
+  padding: 0.9vh 0.7vw;
+}
+
+.tide-item {
+  grid-column: span 2;
+}
+
+.tide-content {
+  min-width: 0;
+  width: 100%;
+}
+
+.tide-times {
+  display: flex;
+  gap: 0.7vw;
+  margin-top: 0.22vh;
+  color: var(--cream-soft);
+  font-size: clamp(9px, 0.52vw, 12px);
+  white-space: nowrap;
+}
+
+.tide-times b {
+  color: var(--cream);
+  font-weight: 900;
+}
 
 .lifeguard-status {
   padding: 0.45vh 0.55vw;
+  border: 1px solid transparent;
   border-radius: 999px;
   font-size: clamp(10px, 0.7vw, 14px);
   font-weight: 900;
@@ -807,27 +858,43 @@ footer {
 .lifeguard-status.open {
   color: #d9ffeb;
   background: rgba(130, 216, 173, 0.16);
-  border: 1px solid rgba(130, 216, 173, 0.35);
+  border-color: rgba(130, 216, 173, 0.4);
 }
 
 .lifeguard-status.closed {
   color: #ffd8d3;
-  background: rgba(255, 114, 98, 0.15);
-  border: 1px solid rgba(255, 114, 98, 0.35);
+  background: rgba(255, 114, 98, 0.16);
+  border-color: rgba(255, 114, 98, 0.4);
 }
 
 .lifeguard-status.unknown {
   color: var(--cream-soft);
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--line);
+  border-color: var(--line);
 }
 
 .rescue-post.is-open {
-  border-color: rgba(130, 216, 173, 0.28);
+  border-color: rgba(130, 216, 173, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(130, 216, 173, 0.05);
 }
 
 .rescue-post.is-closed {
-  border-color: rgba(255, 114, 98, 0.25);
+  border-color: rgba(255, 114, 98, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(255, 114, 98, 0.04);
+}
+
+@media (max-aspect-ratio: 4/3) and (min-width: 701px) {
+  .dashboard {
+    grid-template-columns: 0.9fr 1.1fr;
+  }
+
+  .conditions-strip {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .tide-item {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 700px) {
@@ -839,5 +906,18 @@ footer {
   .lifeguard-status {
     padding: 6px 9px;
     font-size: 12px;
+  }
+
+  .conditions-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .tide-item {
+    grid-column: 1 / -1;
+  }
+
+  .tide-times {
+    gap: 16px;
+    font-size: 11px;
   }
 }

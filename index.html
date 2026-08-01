@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#c85f3f">
-  <title>Cosmico Beach — Live dashboard</title>
+  <title>Cosmico Beach — Live dashboard 2.1</title>
 
-  <link rel="stylesheet" href="style.css?v=23">
+  <link rel="stylesheet" href="style.css?v=210">
 </head>
 
 <body>
@@ -122,6 +122,23 @@
         </div>
 
         <div class="condition-item">
+          <span class="condition-icon">🌡️</span>
+          <div><small>Zeetemperatuur</small><strong id="seaTemperature">--°C</strong></div>
+        </div>
+
+        <div class="condition-item tide-item">
+          <span class="condition-icon">↕️</span>
+          <div class="tide-content">
+            <small>Getijden · modelindicatie</small>
+            <strong id="tideState">Getij laden…</strong>
+            <span class="tide-times">
+              <span>Vloed <b id="nextHighTide">--:--</b></span>
+              <span>Eb <b id="nextLowTide">--:--</b></span>
+            </span>
+          </div>
+        </div>
+
+        <div class="condition-item">
           <span class="condition-icon">🧭</span>
           <div><small>Golfrichting</small><strong id="waveDirection">--</strong></div>
         </div>
@@ -161,6 +178,6 @@
     </footer>
   </div>
 
-  <script src="script.js?v=23"></script>
+  <script src="script.js?v=210"></script>
 </body>
 </html>

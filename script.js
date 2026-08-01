@@ -26,9 +26,12 @@ const CONFIG = {
 
   marineUrl:
     "https://marine-api.open-meteo.com/v1/marine" +
-    "?latitude=52.374" +
-    "&longitude=4.525" +
-    "&current=wave_height,wave_direction,wave_period" +
+    "?latitude=52.39" +
+    "&longitude=4.45" +
+    "&current=wave_height,wave_direction,wave_period," +
+    "sea_surface_temperature,sea_level_height_msl" +
+    "&minutely_15=sea_level_height_msl" +
+    "&forecast_minutely_15=192" +
     "&timezone=Europe%2FAmsterdam",
 
   beachPostsUrl:
@@ -420,7 +423,6 @@ function renderRescuePost(post, fallbackName) {
   }
 
   const active = post.state_status === true;
-
   const stateText =
     post.state_text ||
     post.state ||
@@ -436,32 +438,6 @@ function renderRescuePost(post, fallbackName) {
         <div class="lifeguard-status ${active ? "open" : "closed"}">
           <span class="status-light ${active ? "on" : "off"}"></span>
           ${active ? "BEWAAKT" : "GEEN TOEZICHT"}
-        </div>
-      </div>
-
-      <p class="rescue-state">${escapeHtml(stateText)}</p>
-
-      ${renderFlag(post)}
-    </article>
-  `;
-}
-
-  const active = post.state_status === true;
-  const stateText =
-    post.state_text ||
-    post.state ||
-    (active
-      ? "Lifeguards houden toezicht."
-      : "Geen toezicht. Zwemmen op eigen risico.");
-
-  return `
-    <article class="rescue-post">
-      <div class="rescue-post-top">
-        <h3>${escapeHtml(post.name || fallbackName)}</h3>
-
-        <div class="lifeguard-status">
-          <span class="status-light ${active ? "on" : "off"}"></span>
-          ${active ? "Lifeguards aanwezig" : "Geen toezicht"}
         </div>
       </div>
 
@@ -496,46 +472,62 @@ function buildBeachAdvice(weather, marine, uv) {
   const wind = Number(weather.wind_speed_10m);
   const gusts = Number(weather.wind_gusts_10m);
   const wave = Number(marine.wave_height);
+  const seaTemperature = Number(marine.sea_surface_temperature);
   const uvIndex = Number(uv);
   const code = Number(weather.weather_code);
 
-  const parts = [];
+  const messages = [];
+
+  function add(priority, text) {
+    messages.push({ priority, text });
+  }
 
   if (code >= 95) {
-    parts.push("Bij onweer direct het strand en het water verlaten.");
-  } else if ([61, 63, 65, 80, 81, 82].includes(code)) {
-    parts.push("Houd rekening met regen of buien.");
-  } else if (temperature >= 22) {
-    parts.push("Heerlijk strandweer.");
+    add(100, "⛈️ Bij onweer direct het strand en het water verlaten.");
+  } else if ([65, 82].includes(code)) {
+    add(90, "🌧️ Zware buien mogelijk. Zoek tijdig een veilige plek.");
+  } else if ([61, 63, 80, 81].includes(code)) {
+    add(55, "🌦️ Houd rekening met regen of een bui.");
+  } else if (temperature >= 24) {
+    add(35, "☀️ Perfect strandweer.");
+  } else if (temperature >= 20) {
+    add(25, "☀️ Heerlijk weer voor een bezoek aan het strand.");
   } else if (temperature < 16) {
-    parts.push("Het is fris aan zee.");
-  } else {
-    parts.push("Prima weer voor een bezoek aan het strand.");
+    add(30, "🧥 Het is fris aan zee.");
   }
 
   if (wind >= 40 || gusts >= 55) {
-    parts.push("Veel wind: zet losse spullen goed vast.");
-  } else if (wind >= 25) {
-    parts.push("Er staat een stevige zeewind.");
+    add(85, "🌬️ Het waait hard. Zet parasols en losse spullen goed vast.");
+  } else if (wind >= 25 || gusts >= 40) {
+    add(50, "🌬️ Er staat een stevige zeewind.");
   }
 
   if (wave >= 1.5) {
-    parts.push("Stevige golven: wees extra voorzichtig in zee.");
+    add(80, "🌊 Hoge golven: wees extra voorzichtig in zee.");
   } else if (wave >= 0.8) {
-    parts.push("Houd rekening met merkbare golfslag.");
+    add(45, "🌊 Houd rekening met duidelijke golfslag.");
+  } else if (Number.isFinite(wave)) {
+    add(15, "🌊 De zee is relatief rustig.");
   }
 
-  if (uvIndex >= 6) {
-    parts.push("UV is hoog, dus goed en regelmatig insmeren.");
+  if (uvIndex >= 8) {
+    add(75, "🧴 UV is zeer hoog. Zoek schaduw en smeer vaak.");
+  } else if (uvIndex >= 6) {
+    add(65, "🧴 UV is hoog. Smeer je goed en regelmatig in.");
   } else if (uvIndex >= 3) {
-    parts.push("Bescherm je huid tegen de zon.");
+    add(30, "🧴 Bescherm je huid tegen de zon.");
   }
 
-  // De disclaimer krijgt een vaste plek en kan nooit wegvallen door de
-  // slice hieronder, ook niet als alle andere condities tegelijk gelden.
-  const disclaimer = "De officiële vlaggen en aanwijzingen zijn altijd leidend.";
+  if (Number.isFinite(seaTemperature) && seaTemperature < 16) {
+    add(40, "🌡️ Het zeewater is koud; koel niet te snel af.");
+  }
 
-  return parts.slice(0, 3).concat(disclaimer).join(" ");
+  messages.sort((a, b) => b.priority - a.priority);
+
+  const selected = messages.slice(0, 3).map((item) => item.text);
+  selected.push("🚩 De officiële vlaggen en aanwijzingen zijn altijd leidend.");
+
+  return selected.join(" ");
 }
 
 function setConnection(online, text) {
@@ -614,6 +606,79 @@ function scheduleNextLoad(delayMs) {
   }, delayMs);
 }
 
+function findTideEvents(marineData) {
+  const series = marineData?.minutely_15 || marineData?.hourly || {};
+  const times = Array.isArray(series.time) ? series.time : [];
+  const levels = Array.isArray(series.sea_level_height_msl)
+    ? series.sea_level_height_msl.map(Number)
+    : [];
+
+  if (times.length < 3 || times.length !== levels.length) {
+    return {
+      state: "Onbekend",
+      nextHigh: null,
+      nextLow: null
+    };
+  }
+
+  const now = Date.now();
+  const events = [];
+
+  for (let index = 1; index < levels.length - 1; index += 1) {
+    const previous = levels[index - 1];
+    const current = levels[index];
+    const next = levels[index + 1];
+    const time = new Date(times[index]);
+
+    if (
+      !Number.isFinite(previous) ||
+      !Number.isFinite(current) ||
+      !Number.isFinite(next) ||
+      Number.isNaN(time.getTime()) ||
+      time.getTime() < now - 30 * 60 * 1000
+    ) {
+      continue;
+    }
+
+    if (current > previous && current >= next) {
+      events.push({ type: "high", time });
+    }
+
+    if (current < previous && current <= next) {
+      events.push({ type: "low", time });
+    }
+  }
+
+  const future = events.filter((event) => event.time.getTime() >= now);
+  const nextHigh = future.find((event) => event.type === "high")?.time || null;
+  const nextLow = future.find((event) => event.type === "low")?.time || null;
+
+  let currentIndex = times.findIndex(
+    (value) => new Date(value).getTime() >= now
+  );
+
+  if (currentIndex < 1) {
+    currentIndex = 1;
+  }
+
+  const currentLevel = levels[currentIndex];
+  const previousLevel = levels[currentIndex - 1];
+
+  let state = "Kentering";
+
+  if (Number.isFinite(currentLevel) && Number.isFinite(previousLevel)) {
+    const difference = currentLevel - previousLevel;
+
+    if (difference > 0.005) {
+      state = "Opkomend water";
+    } else if (difference < -0.005) {
+      state = "Afgaand water";
+    }
+  }
+
+  return { state, nextHigh, nextLow };
+}
+
 function renderWeatherData(weatherData) {
   const current = weatherData.current || {};
   const hourly = weatherData.hourly || {};
@@ -657,10 +722,25 @@ function renderWeatherData(weatherData) {
 
 function renderMarineData(marineData) {
   const marine = marineData.current || {};
+  const tides = findTideEvents(marineData);
 
   setText("waveHeight", `${numberText(marine.wave_height, 1)} m`);
   setText("waveDirection", compassDirection(marine.wave_direction));
   setText("wavePeriod", `${numberText(marine.wave_period, 1)} sec`);
+  setText(
+    "seaTemperature",
+    `${numberText(marine.sea_surface_temperature, 1)}°C`
+  );
+
+  setText("tideState", tides.state);
+  setText(
+    "nextHighTide",
+    tides.nextHigh ? formatClockTime(tides.nextHigh) : "—"
+  );
+  setText(
+    "nextLowTide",
+    tides.nextLow ? formatClockTime(tides.nextLow) : "—"
+  );
 }
 
 function renderCurrentAdvice() {
