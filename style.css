@@ -921,3 +921,108 @@ footer {
     font-size: 11px;
   }
 }
+/* ==========================================================
+   COSMICO DASHBOARD TV MODE (Full HD 1920x1080)
+   ========================================================== */
+
+@media screen and (min-width:1600px) {
+
+  body{
+      overflow:hidden;
+  }
+
+  .dashboard{
+      max-width:1880px;
+      margin:0 auto;
+      padding:18px;
+      gap:14px;
+  }
+
+  /* bovenste blokken */
+
+  .hero{
+      gap:14px;
+  }
+
+  .weather-card{
+      min-height:285px;
+  }
+
+  .live-card{
+      min-height:285px;
+  }
+
+  /* webcam */
+
+  .live-stream iframe,
+  .live-stream img,
+  .live-stream video{
+
+      width:100%;
+      height:320px;
+      object-fit:cover;
+      border-radius:16px;
+
+  }
+
+  /* uurverwachting */
+
+  .hourly-forecast{
+
+      gap:8px;
+
+  }
+
+  .hour-card{
+
+      padding:12px 10px;
+
+  }
+
+  /* reddingsbrigade */
+
+  .rescue-card{
+
+      min-height:220px;
+
+  }
+
+  .rescue-post{
+
+      min-height:150px;
+
+  }
+
+  /* onderste informatie */
+
+  .conditions-strip{
+
+      gap:10px;
+
+  }
+
+  .condition-card{
+
+      min-height:78px;
+
+  }
+
+  /* adviesbalk */
+
+  .advice-bar{
+
+      padding:14px 20px;
+
+      font-size:19px;
+
+  }
+
+  /* klok */
+
+  .clock{
+
+      font-size:62px;
+
+  }
+
+}
