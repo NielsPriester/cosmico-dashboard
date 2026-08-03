@@ -1,5 +1,9 @@
 "use strict";
+const urlParameters = new URLSearchParams(window.location.search);
 
+if (urlParameters.get("tv") === "1") {
+  document.documentElement.classList.add("tv-mode");
+}
 /*
   COSMICO BEACH DASHBOARD
 
