@@ -1,6 +1,6 @@
 "use strict";
 
-/* COSMICO BEACH DASHBOARD 3.0.3 — complete layout */
+/* COSMICO BEACH DASHBOARD 3.1 — dag/nacht thema, windkompas, tide-sparkline */
 const CONFIG = {
   timezone: "Europe/Amsterdam",
   weatherUrl:
@@ -23,7 +23,8 @@ const CONFIG = {
   retryMs: 60 * 1000,
   requestTimeoutMs: 12 * 1000,
   hardReloadMs: 6 * 60 * 60 * 1000,
-  cacheKey: "cosmico-dashboard-303-cache"
+  cacheKey: "cosmico-dashboard-310-cache",
+  dawnDuskWindowMs: 45 * 60 * 1000
 };
 
 document.documentElement.dataset.motion = "on";
@@ -31,6 +32,10 @@ const $ = (id) => document.getElementById(id);
 let refreshTimer = null;
 let beachFailureCount = 0;
 let beachNextAttemptAt = 0;
+
+/* Houdt de meest recente zon- en weerinfo bij zodat het dag/nacht-thema
+   ook tussen twee databeurten door kan bijwerken (elke klok-tick). */
+const sky = { sunrise: null, sunset: null, sunriseNext: null, weatherCode: null, theme: null, isNight: false };
 
 function setMode() {
   const requested = (new URLSearchParams(window.location.search).get("mode") || "").toLowerCase();
@@ -64,28 +69,89 @@ function formatClock(date) {
   return date.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
 }
 
-function updateClock() {
-  const now = new Date();
-  setText("clockTime", formatClock(now));
-  setText("clockDate", now.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" }));
-}
-
 function formatApiTime(value) {
   if (!value) return "—";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "—" : formatClock(date);
 }
 
-function weatherInfo(code) {
+/* ---------- Dag/nacht thema ---------- */
+
+function computeThemeState(sunriseIso, sunsetIso, now = Date.now()) {
+  const sunrise = sunriseIso ? new Date(sunriseIso).getTime() : null;
+  const sunset = sunsetIso ? new Date(sunsetIso).getTime() : null;
+  const w = CONFIG.dawnDuskWindowMs;
+
+  if (!Number.isFinite(sunrise) || !Number.isFinite(sunset)) {
+    // Geen zongegevens beschikbaar: ruwe schatting op basis van lokale klok.
+    const hour = new Date(now).getHours();
+    if (hour < 6 || hour >= 21) return { theme: "night", isNight: true };
+    if (hour < 8) return { theme: "dawn", isNight: false };
+    if (hour >= 19) return { theme: "dusk", isNight: false };
+    return { theme: "day", isNight: false };
+  }
+
+  if (now < sunrise - w) return { theme: "night", isNight: true };
+  if (now < sunrise + w) return { theme: "dawn", isNight: false };
+  if (now < sunset - w) return { theme: "day", isNight: false };
+  if (now < sunset + w) return { theme: "dusk", isNight: false };
+  return { theme: "night", isNight: true };
+}
+
+function weatherInfo(code, isNight = false) {
   const map = {
-    0:["Onbewolkt","☀️"], 1:["Vrij zonnig","🌤️"], 2:["Halfbewolkt","⛅"], 3:["Bewolkt","☁️"],
-    45:["Mist","🌫️"], 48:["Rijpmist","🌫️"], 51:["Lichte motregen","🌦️"], 53:["Motregen","🌦️"],
-    55:["Stevige motregen","🌧️"], 61:["Lichte regen","🌦️"], 63:["Regen","🌧️"], 65:["Zware regen","🌧️"],
-    71:["Lichte sneeuw","🌨️"], 73:["Sneeuw","🌨️"], 75:["Zware sneeuw","❄️"],
-    80:["Lichte buien","🌦️"], 81:["Buien","🌧️"], 82:["Zware buien","⛈️"],
-    95:["Onweer","⛈️"], 96:["Onweer met hagel","⛈️"], 99:["Zwaar onweer","⛈️"]
+    0: ["Onbewolkt", "☀️"], 1: ["Vrij zonnig", "🌤️"], 2: ["Halfbewolkt", "⛅"], 3: ["Bewolkt", "☁️"],
+    45: ["Mist", "🌫️"], 48: ["Rijpmist", "🌫️"], 51: ["Lichte motregen", "🌦️"], 53: ["Motregen", "🌦️"],
+    55: ["Stevige motregen", "🌧️"], 61: ["Lichte regen", "🌦️"], 63: ["Regen", "🌧️"], 65: ["Zware regen", "🌧️"],
+    71: ["Lichte sneeuw", "🌨️"], 73: ["Sneeuw", "🌨️"], 75: ["Zware sneeuw", "❄️"],
+    80: ["Lichte buien", "🌦️"], 81: ["Buien", "🌧️"], 82: ["Zware buien", "⛈️"],
+    95: ["Onweer", "⛈️"], 96: ["Onweer met hagel", "⛈️"], 99: ["Zwaar onweer", "⛈️"]
   };
-  return map[Number(code)] || ["Wisselend", "🌤️"];
+  const [description, icon] = map[Number(code)] || ["Wisselend", "🌤️"];
+  if (isNight) {
+    if (Number(code) === 0) return ["Helder", "🌙"];
+    if (Number(code) === 1) return ["Licht bewolkt", "🌙"];
+    if (Number(code) === 2) return ["Halfbewolkt", "🌥️"];
+  }
+  return [description, icon];
+}
+
+function applyTheme() {
+  const result = computeThemeState(sky.sunrise, sky.sunset);
+  if (result.theme !== sky.theme) {
+    document.documentElement.dataset.theme = result.theme;
+    sky.theme = result.theme;
+  }
+  if (result.isNight !== sky.isNight) {
+    sky.isNight = result.isNight;
+    if (sky.weatherCode !== null) {
+      const [description, icon] = weatherInfo(sky.weatherCode, sky.isNight);
+      setText("weatherIcon", icon);
+      setText("headerWeatherIcon", icon);
+      setText("condition", description);
+      setText("headerCondition", description);
+    }
+    updateSunCard();
+  }
+}
+
+function updateSunCard() {
+  if (sky.isNight) {
+    setText("sunLabel", "Zonsopgang");
+    setText("sunIcon", "🌄", "🌄");
+    setText("sunset", sky.sunriseNext ? formatApiTime(sky.sunriseNext) : formatApiTime(sky.sunset));
+  } else {
+    setText("sunLabel", "Zonsondergang");
+    setText("sunIcon", "🌅", "🌅");
+    setText("sunset", formatApiTime(sky.sunset));
+  }
+}
+
+function updateClock() {
+  const now = new Date();
+  setText("clockTime", formatClock(now));
+  setText("clockDate", now.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" }));
+  applyTheme();
 }
 
 function compassDirection(degrees) {
@@ -93,6 +159,15 @@ function compassDirection(degrees) {
   if (!Number.isFinite(value)) return "—";
   const labels = ["N","NNO","NO","ONO","O","OZO","ZO","ZZO","Z","ZZW","ZW","WZW","W","WNW","NW","NNW"];
   return labels[Math.round((((value % 360) + 360) % 360) / 22.5) % 16];
+}
+
+function setWindArrow(degrees) {
+  const arrow = $("windArrow");
+  if (!arrow) return;
+  const value = Number(degrees);
+  // De arrow wijst de richting op waar de wind naartoe waait (bron + 180°).
+  const rotation = Number.isFinite(value) ? (value + 180) % 360 : 0;
+  arrow.style.setProperty("--wind-deg", `${rotation}deg`);
 }
 
 function escapeHtml(value) {
@@ -147,10 +222,42 @@ function renderHourly(hourly) {
   if (start < 0) start = 0;
   const cards = [];
   for (let i = start; i < Math.min(start + 6, hourly.time.length); i += 1) {
-    const [, icon] = weatherInfo(hourly.weather_code?.[i]);
-    cards.push(`<div class="hour"><span class="time">${formatClock(new Date(hourly.time[i]))}</span><span class="icon">${icon}</span><strong class="degrees">${numberText(hourly.temperature_2m?.[i])}°</strong><span class="rain">💧 ${numberText(hourly.precipitation_probability?.[i])}%</span></div>`);
+    const [, icon] = weatherInfo(hourly.weather_code?.[i], sky.isNight && i === start);
+    const nowClass = i === start ? " is-now" : "";
+    cards.push(`<div class="hour${nowClass}"><span class="time">${formatClock(new Date(hourly.time[i]))}</span><span class="icon">${icon}</span><strong class="degrees">${numberText(hourly.temperature_2m?.[i])}°</strong><span class="rain">💧 ${numberText(hourly.precipitation_probability?.[i])}%</span></div>`);
   }
   container.innerHTML = cards.join("");
+}
+
+function renderTideSpark(times, levels, windowStart, windowEnd, nowIndex) {
+  const line = $("tideSparkLine");
+  const dot = $("tideSparkNow");
+  if (!line || !dot) return;
+  const slice = levels.slice(windowStart, windowEnd).map(Number).filter(Number.isFinite);
+  if (slice.length < 2) { line.setAttribute("points", ""); return; }
+
+  const min = Math.min(...slice);
+  const max = Math.max(...slice);
+  const span = Math.max(max - min, 0.05);
+  const count = windowEnd - windowStart;
+  const padY = 3;
+  const usableH = 34 - padY * 2;
+
+  const points = [];
+  for (let i = windowStart; i < windowEnd; i += 1) {
+    const value = Number(levels[i]);
+    const x = ((i - windowStart) / (count - 1)) * 120;
+    const y = Number.isFinite(value) ? padY + (1 - (value - min) / span) * usableH : 17;
+    points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+  }
+  line.setAttribute("points", points.join(" "));
+
+  const relativeNow = Math.min(Math.max(nowIndex - windowStart, 0), count - 1);
+  const nowValue = Number(levels[windowStart + relativeNow]);
+  const nowX = (relativeNow / (count - 1)) * 120;
+  const nowY = Number.isFinite(nowValue) ? padY + (1 - (nowValue - min) / span) * usableH : 17;
+  dot.setAttribute("cx", nowX.toFixed(1));
+  dot.setAttribute("cy", nowY.toFixed(1));
 }
 
 function renderTide(hourly) {
@@ -161,6 +268,8 @@ function renderTide(hourly) {
     setText("tideHeight", "Stand -- m");
     setText("nextHighTide", "--:--");
     setText("nextLowTide", "--:--");
+    const line = $("tideSparkLine");
+    if (line) line.setAttribute("points", "");
     return;
   }
 
@@ -190,6 +299,10 @@ function renderTide(hourly) {
   setText("tideHeight", `Stand ${signedNumberText(current, 2)} m`);
   setText("nextHighTide", nextHigh ? formatClock(nextHigh) : "--:--");
   setText("nextLowTide", nextLow ? formatClock(nextLow) : "--:--");
+
+  const windowStart = Math.max(0, nearest - 8);
+  const windowEnd = Math.min(levels.length, windowStart + 24);
+  renderTideSpark(times, levels, windowStart, windowEnd, nearest);
 }
 
 function findPost(posts, terms) {
@@ -234,6 +347,7 @@ function buildAdvice(weather, marine, uv) {
   const parts = [];
   if (code >= 95) parts.push("Bij onweer direct het strand en het water verlaten.");
   else if ([61,63,65,80,81,82].includes(code)) parts.push("Houd rekening met regen of buien.");
+  else if (sky.isNight) parts.push("Rustig aan het strand vanavond.");
   else if (temperature >= 22) parts.push("Heerlijk strandweer.");
   else if (temperature < 16) parts.push("Het is fris aan zee.");
   else parts.push("Prima weer voor een bezoek aan het strand.");
@@ -241,8 +355,8 @@ function buildAdvice(weather, marine, uv) {
   else if (wind >= 25) parts.push("Er staat een stevige zeewind.");
   if (wave >= 1.5) parts.push("Stevige golven: wees extra voorzichtig in zee.");
   else if (wave >= .8) parts.push("Houd rekening met merkbare golfslag.");
-  if (uvIndex >= 6) parts.push("UV is hoog, dus goed en regelmatig insmeren.");
-  else if (uvIndex >= 3) parts.push("Bescherm je huid tegen de zon.");
+  if (!sky.isNight && uvIndex >= 6) parts.push("UV is hoog, dus goed en regelmatig insmeren.");
+  else if (!sky.isNight && uvIndex >= 3) parts.push("Bescherm je huid tegen de zon.");
   return parts.slice(0, 3).concat("De officiële vlaggen en aanwijzingen zijn altijd leidend.").join(" ");
 }
 
@@ -266,7 +380,15 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
   const marine = marineData?.current || {};
   const marineHourly = marineData?.hourly || {};
   const uv = daily.uv_index_max?.[0];
-  const [description, icon] = weatherInfo(current.weather_code);
+
+  sky.sunrise = daily.sunrise?.[0] || sky.sunrise;
+  sky.sunset = daily.sunset?.[0] || sky.sunset;
+  sky.sunriseNext = daily.sunrise?.[1] || sky.sunriseNext;
+  sky.weatherCode = current.weather_code ?? sky.weatherCode;
+  applyTheme();
+  updateSunCard();
+
+  const [description, icon] = weatherInfo(current.weather_code, sky.isNight);
 
   setText("weatherIcon", icon);
   setText("headerWeatherIcon", icon);
@@ -276,6 +398,7 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
   setText("headerCondition", description);
   setText("feelsLike", `${numberText(current.apparent_temperature)}°C`);
   setText("wind", `${numberText(current.wind_speed_10m)} km/u ${compassDirection(current.wind_direction_10m)}`);
+  setWindArrow(current.wind_direction_10m);
   setText("windGusts", `${numberText(current.wind_gusts_10m)} km/u`);
   setText("uvIndex", numberText(uv, 1));
   setText("precipitation", `${numberText(current.precipitation, 1)} mm`);
@@ -285,7 +408,6 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
   const visibilityKm = visibilityUnit === "km" ? visibilityValue : visibilityValue / 1000;
   setText("visibility", Number.isFinite(visibilityKm) ? `${visibilityKm.toFixed(0)} km` : "—");
   setText("humidity", `${numberText(current.relative_humidity_2m)}%`);
-  setText("sunset", formatApiTime(daily.sunset?.[0]));
 
   setText("waveHeight", `${numberText(marine.wave_height, 1)} m`);
   setText("waveDirection", compassDirection(marine.wave_direction));
@@ -357,6 +479,7 @@ async function loadDashboard() {
 }
 
 setMode();
+applyTheme();
 updateClock();
 window.setInterval(updateClock, 1000);
 loadDashboard();

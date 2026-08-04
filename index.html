@@ -5,12 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#bc5e42">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>Cosmico Beach — Dashboard 3.0.3</title>
-  <link rel="stylesheet" href="style.css?v=303">
+  <title>Cosmico Beach — Dashboard 3.1</title>
+  <link rel="stylesheet" href="style.css?v=310">
 </head>
 <body>
   <div class="ambient" aria-hidden="true">
     <div class="ambient-sun"><span></span></div>
+    <div class="ambient-moon"></div>
+    <div class="ambient-stars"></div>
     <div class="ambient-wave wave-one"></div>
     <div class="ambient-wave wave-two"></div>
   </div>
@@ -22,7 +24,7 @@
         <h1>COSMICO <span>BEACH</span></h1>
       </div>
 
-      <div class="topbar-summary" aria-label="Korte weersamenvatting">
+      <div class="topbar-summary" aria-label="Korte weersamenvatting" aria-live="polite">
         <span id="headerWeatherIcon" class="mini-weather-icon">☀️</span>
         <strong id="headerTemperature">--°</strong>
         <span id="headerCondition">Laden…</span>
@@ -45,15 +47,21 @@
                 <span class="sun-rays"></span>
                 <span id="weatherIcon" class="weather-icon">☀️</span>
               </div>
-              <strong id="temperature" class="temperature">--°</strong>
+              <strong id="temperature" class="temperature" aria-live="polite">--°</strong>
             </div>
-            <h2 id="condition" class="condition">Weergegevens laden…</h2>
+            <h2 id="condition" class="condition" aria-live="polite">Weergegevens laden…</h2>
             <p class="location">Cosmico Beach · Zandvoort aan Zee</p>
           </div>
 
           <div class="metric-grid">
             <div class="metric"><span>Gevoel</span><strong id="feelsLike">--°C</strong></div>
-            <div class="metric"><span>Wind</span><strong id="wind">-- km/u</strong></div>
+            <div class="metric metric-wind">
+              <span>Wind</span>
+              <strong id="wind">-- km/u</strong>
+              <svg id="windArrow" class="wind-arrow" viewBox="0 0 24 24" aria-hidden="true" style="--wind-deg:0deg">
+                <path d="M12 2 L17 12 L13 12 L13 22 L11 22 L11 12 L7 12 Z"></path>
+              </svg>
+            </div>
             <div class="metric"><span>Windstoten</span><strong id="windGusts">-- km/u</strong></div>
             <div class="metric"><span>UV-index</span><strong id="uvIndex">--</strong></div>
             <div class="metric"><span>Neerslag</span><strong id="precipitation">-- mm</strong></div>
@@ -86,7 +94,7 @@
 
       <section class="card forecast-card">
         <div class="section-label">VERWACHTING KOMENDE UREN</div>
-        <div id="hourlyForecast" class="hourly-forecast">
+        <div id="hourlyForecast" class="hourly-forecast" aria-live="polite">
           <div class="loading-copy">Verwachting ophalen…</div>
         </div>
       </section>
@@ -99,7 +107,7 @@
           </div>
           <span class="source-chip">STRAND APP</span>
         </div>
-        <div id="rescuePosts" class="rescue-posts">
+        <div id="rescuePosts" class="rescue-posts" aria-live="polite">
           <div class="rescue-loading">Status van de strandposten wordt opgehaald…</div>
         </div>
         <p class="rescue-disclaimer">Volg op het strand altijd de actuele vlaggen en aanwijzingen van de lifeguards.</p>
@@ -109,7 +117,10 @@
         <div class="condition-item"><span class="condition-icon wave-icon">🌊</span><div><small>Golven</small><strong id="waveHeight">-- m</strong></div></div>
         <div class="condition-item"><span class="condition-icon">🌡️</span><div><small>Zeetemperatuur</small><strong id="waterTemperature">--°C</strong></div></div>
         <div class="condition-item tide-item">
-          <span class="condition-icon tide-icon">↕️</span>
+          <svg id="tideSpark" class="tide-spark" viewBox="0 0 120 34" preserveAspectRatio="none" aria-hidden="true">
+            <polyline id="tideSparkLine" points=""></polyline>
+            <circle id="tideSparkNow" cx="0" cy="17" r="2.4"></circle>
+          </svg>
           <div>
             <small>Getijden · modelindicatie</small>
             <strong id="tideState">Waterstand laden…</strong>
@@ -119,25 +130,25 @@
         <div class="condition-item"><span class="condition-icon compass-icon">🧭</span><div><small>Golfrichting</small><strong id="waveDirection">--</strong></div></div>
         <div class="condition-item"><span class="condition-icon period-icon">〰</span><div><small>Golfperiode</small><strong id="wavePeriod">-- sec</strong></div></div>
         <div class="condition-item"><span class="condition-icon">💧</span><div><small>Luchtvochtigheid</small><strong id="humidity">--%</strong></div></div>
-        <div class="condition-item"><span class="condition-icon">🌅</span><div><small>Zonsondergang</small><strong id="sunset">--:--</strong></div></div>
+        <div class="condition-item"><span class="condition-icon" id="sunIcon">🌅</span><div><small id="sunLabel">Zonsondergang</small><strong id="sunset">--:--</strong></div></div>
       </section>
 
       <section class="advice-bar">
         <div class="advice-icon">✦</div>
         <div>
           <small>VANDAAG AAN HET STRAND</small>
-          <strong id="beachAdvice">Actueel strandadvies wordt samengesteld…</strong>
+          <strong id="beachAdvice" aria-live="polite">Actueel strandadvies wordt samengesteld…</strong>
         </div>
       </section>
     </main>
 
     <footer>
       <span>Good food · Cold drinks · Beach life</span>
-      <div class="mode-label"><span id="modeName">AUTO</span> · DASHBOARD 3.0.3 · Data: Open-Meteo & Strand App</div>
-      <div id="connectionState" class="connection-state"><span class="connection-dot"></span><span id="connectionText">Verbinden…</span></div>
+      <div class="mode-label"><span id="modeName">AUTO</span> · DASHBOARD 3.1 · Data: Open-Meteo & Strand App</div>
+      <div id="connectionState" class="connection-state" aria-live="polite"><span class="connection-dot"></span><span id="connectionText">Verbinden…</span></div>
     </footer>
   </div>
 
-  <script src="script.js?v=303" defer></script>
+  <script src="script.js?v=310" defer></script>
 </body>
 </html>
