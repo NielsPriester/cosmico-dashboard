@@ -2,14 +2,19 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#c85f3f">
-  <title>Cosmico Beach — Live dashboard 2.1</title>
-
-  <link rel="stylesheet" href="style.css?v=211">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#bc5e42">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Cosmico Beach — Dashboard 3.0</title>
+  <link rel="stylesheet" href="style.css?v=301">
 </head>
-
 <body>
+  <div class="ambient" aria-hidden="true">
+    <div class="ambient-sun"><span></span></div>
+    <div class="ambient-wave wave-one"></div>
+    <div class="ambient-wave wave-two"></div>
+  </div>
+
   <div id="app">
     <header class="topbar">
       <div class="brand-block">
@@ -18,7 +23,7 @@
       </div>
 
       <div class="topbar-summary" aria-label="Korte weersamenvatting">
-        <span id="headerWeatherIcon">☀️</span>
+        <span id="headerWeatherIcon" class="mini-weather-icon">☀️</span>
         <strong id="headerTemperature">--°</strong>
         <span id="headerCondition">Laden…</span>
       </div>
@@ -32,68 +37,52 @@
     <main class="dashboard">
       <section class="card current-card">
         <div class="section-label">WEER OP DIT MOMENT</div>
-
         <div class="current-layout">
-          <div>
+          <div class="weather-main">
             <div class="temperature-line">
-              <span id="weatherIcon" class="weather-icon">☀️</span>
+              <div class="weather-orbit" aria-hidden="true">
+                <span class="sun-core"></span>
+                <span class="sun-rays"></span>
+                <span id="weatherIcon" class="weather-icon">☀️</span>
+              </div>
               <strong id="temperature" class="temperature">--°</strong>
             </div>
-
             <h2 id="condition" class="condition">Weergegevens laden…</h2>
             <p class="location">Cosmico Beach · Zandvoort aan Zee</p>
           </div>
 
           <div class="metric-grid">
-            <div class="metric">
-              <span>Gevoel</span>
-              <strong id="feelsLike">--°C</strong>
-            </div>
-            <div class="metric">
-              <span>Wind</span>
-              <strong id="wind">-- km/u</strong>
-            </div>
-            <div class="metric">
-              <span>Windstoten</span>
-              <strong id="windGusts">-- km/u</strong>
-            </div>
-            <div class="metric">
-              <span>UV-index</span>
-              <strong id="uvIndex">--</strong>
-            </div>
-            <div class="metric">
-              <span>Neerslag</span>
-              <strong id="precipitation">-- mm</strong>
-            </div>
-            <div class="metric">
-              <span>Zicht</span>
-              <strong id="visibility">-- km</strong>
-            </div>
+            <div class="metric"><span>Gevoel</span><strong id="feelsLike">--°C</strong></div>
+            <div class="metric"><span>Wind</span><strong id="wind">-- km/u</strong></div>
+            <div class="metric"><span>Windstoten</span><strong id="windGusts">-- km/u</strong></div>
+            <div class="metric"><span>UV-index</span><strong id="uvIndex">--</strong></div>
+            <div class="metric"><span>Neerslag</span><strong id="precipitation">-- mm</strong></div>
+            <div class="metric"><span>Zicht</span><strong id="visibility">-- km</strong></div>
           </div>
         </div>
       </section>
 
-      <section class="card media-card">
-        <div class="media-heading">
-          <div>
-            <div class="section-label">LIVE & ACTUEEL</div>
-            <h2 id="mediaTitle">Live vanuit Zandvoort</h2>
-          </div>
-
-          <div class="media-indicator">
-            <span class="live-dot"></span>
-            <span id="mediaBadge">LIVE</span>
-          </div>
+      <section class="card sea-card">
+        <div class="section-label">ZEE & KUST</div>
+        <div class="sea-visual" aria-hidden="true">
+          <div class="sea-sun"></div>
+          <div class="sea-wave back"></div>
+          <div class="sea-wave front"></div>
+          <div class="sea-foam"></div>
         </div>
-
-        <div id="mediaSlider" class="media-slider" aria-live="polite"></div>
-
-        <div id="slideDots" class="slide-dots" aria-label="Slide-indicator"></div>
+        <div class="sea-stats">
+          <div><small>Golven</small><strong id="waveHeight">-- m</strong></div>
+          <div><small>Watertemperatuur</small><strong id="waterTemperature">--°C</strong></div>
+          <div><small>Richting</small><strong id="waveDirection">--</strong></div>
+          <div><small>Periode</small><strong id="wavePeriod">-- sec</strong></div>
+        </div>
       </section>
 
       <section class="card forecast-card">
         <div class="section-label">VERWACHTING KOMENDE UREN</div>
-        <div id="hourlyForecast" class="hourly-forecast"></div>
+        <div id="hourlyForecast" class="hourly-forecast">
+          <div class="loading-copy">Verwachting ophalen…</div>
+        </div>
       </section>
 
       <section class="card rescue-card">
@@ -102,61 +91,19 @@
             <div class="section-label">OFFICIËLE STRANDINFORMATIE</div>
             <h2>Reddingsbrigade Zandvoort</h2>
           </div>
-
-          <span class="source-chip">Strand App</span>
+          <span class="source-chip">STRAND APP</span>
         </div>
-
         <div id="rescuePosts" class="rescue-posts">
-          <div class="rescue-loading">Status van beide strandposten wordt opgehaald…</div>
+          <div class="rescue-loading">Status van de strandposten wordt opgehaald…</div>
         </div>
-
-        <p class="rescue-disclaimer">
-          Volg op het strand altijd de actuele vlaggen en aanwijzingen van de lifeguards.
-        </p>
+        <p class="rescue-disclaimer">Volg op het strand altijd de actuele vlaggen en aanwijzingen van de lifeguards.</p>
       </section>
 
       <section class="conditions-strip">
-        <div class="condition-item">
-          <span class="condition-icon">🌊</span>
-          <div><small>Golven</small><strong id="waveHeight">-- m</strong></div>
-        </div>
-
-        <div class="condition-item">
-          <span class="condition-icon">🌡️</span>
-          <div><small>Zeetemperatuur</small><strong id="seaTemperature">--°C</strong></div>
-        </div>
-
-        <div class="condition-item tide-item">
-          <span class="condition-icon">↕️</span>
-          <div class="tide-content">
-            <small>Getijden · modelindicatie</small>
-            <strong id="tideState">Getij laden…</strong>
-            <span class="tide-times">
-              <span>Vloed <b id="nextHighTide">--:--</b></span>
-              <span>Eb <b id="nextLowTide">--:--</b></span>
-            </span>
-          </div>
-        </div>
-
-        <div class="condition-item">
-          <span class="condition-icon">🧭</span>
-          <div><small>Golfrichting</small><strong id="waveDirection">--</strong></div>
-        </div>
-
-        <div class="condition-item">
-          <span class="condition-icon">〰️</span>
-          <div><small>Golfperiode</small><strong id="wavePeriod">-- sec</strong></div>
-        </div>
-
-        <div class="condition-item">
-          <span class="condition-icon">💧</span>
-          <div><small>Luchtvochtigheid</small><strong id="humidity">--%</strong></div>
-        </div>
-
-        <div class="condition-item">
-          <span class="condition-icon">🌅</span>
-          <div><small>Zonsondergang</small><strong id="sunset">--:--</strong></div>
-        </div>
+        <div class="condition-item"><span class="condition-icon">💧</span><div><small>Luchtvochtigheid</small><strong id="humidity">--%</strong></div></div>
+        <div class="condition-item"><span class="condition-icon">🌅</span><div><small>Zonsondergang</small><strong id="sunset">--:--</strong></div></div>
+        <div class="condition-item"><span class="condition-icon wind-compass">➤</span><div><small>Windrichting</small><strong id="windDirection">--</strong></div></div>
+        <div class="condition-item"><span class="condition-icon">🌡️</span><div><small>Max. vandaag</small><strong id="dayMaximum">--°C</strong></div></div>
       </section>
 
       <section class="advice-bar">
@@ -170,7 +117,7 @@
 
     <footer>
       <span>Good food · Cold drinks · Beach life</span>
-
+      <div class="mode-label"><span id="modeName">AUTO</span> · DASHBOARD 3.0</div>
       <div id="connectionState" class="connection-state">
         <span class="connection-dot"></span>
         <span id="connectionText">Verbinden…</span>
@@ -178,6 +125,6 @@
     </footer>
   </div>
 
-  <script src="script.js?v=211"></script>
+  <script src="script.js?v=301" defer></script>
 </body>
 </html>
