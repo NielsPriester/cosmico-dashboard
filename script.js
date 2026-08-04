@@ -1,6 +1,6 @@
 "use strict";
 
-/* COSMICO BEACH DASHBOARD 3.0 */
+/* COSMICO BEACH DASHBOARD 3.0.2 */
 const CONFIG = {
   timezone: "Europe/Amsterdam",
   weatherUrl:
@@ -21,17 +21,15 @@ const CONFIG = {
     "https://dashboard.strand-app.nl/api/beachposts/v1/overview?municipality=zandvoort",
   refreshMs: 10 * 60 * 1000,
   retryMs: 60 * 1000,
-  fetchTimeoutMs: 12 * 1000,
-  beachRetryBaseMs: 5 * 60 * 1000,
-  beachRetryMaxMs: 60 * 60 * 1000,
+  requestTimeoutMs: 12 * 1000,
   hardReloadMs: 6 * 60 * 60 * 1000,
-  cacheKey: "cosmico-dashboard-3-cache"
+  cacheKey: "cosmico-dashboard-302-cache"
 };
+
+document.documentElement.dataset.motion = "on";
 
 const $ = (id) => document.getElementById(id);
 let refreshTimer = null;
-let beachFailureCount = 0;
-let beachBackoffUntil = 0;
 
 function setMode() {
   const params = new URLSearchParams(window.location.search);
@@ -99,31 +97,28 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
 
-async function fetchJson(url, timeoutMs = CONFIG.fetchTimeoutMs) {
+async function fetchJson(url, timeoutMs = CONFIG.requestTimeoutMs) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     const response = await fetch(url, {
       cache: "no-store",
       credentials: "omit",
       signal: controller.signal
     });
-
     if (!response.ok) {
       const error = new Error(`HTTP ${response.status}`);
       error.status = response.status;
       const retryAfter = response.headers.get("Retry-After");
-      error.retryAfterMs = retryAfter && /^\d+$/.test(retryAfter)
-        ? Number(retryAfter) * 1000
-        : 0;
+      if (retryAfter) {
+        const seconds = Number(retryAfter);
+        error.retryAfterMs = Number.isFinite(seconds)
+          ? seconds * 1000
+          : Math.max(0, new Date(retryAfter).getTime() - Date.now());
+      }
       throw error;
     }
-
-    return await response.json();
-  } catch (error) {
-    if (error?.name === "AbortError") throw new Error(`Timeout na ${Math.round(timeoutMs / 1000)} seconden`);
-    throw error;
+    return response.json();
   } finally {
     window.clearTimeout(timeout);
   }
@@ -269,7 +264,7 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
   setText("uvIndex", numberText(uv, 1));
   setText("precipitation", `${numberText(current.precipitation, 1)} mm`);
   const visibilityValue = Number(current.visibility);
-  const visibilityUnit = weatherData?.current_units?.visibility || "m";
+  const visibilityUnit = String(weatherData?.current_units?.visibility || "m").toLowerCase();
   const visibilityKm = visibilityUnit === "km" ? visibilityValue : visibilityValue / 1000;
   setText("visibility", Number.isFinite(visibilityKm) ? `${visibilityKm.toFixed(0)} km` : "—");
   setText("humidity", `${numberText(current.relative_humidity_2m)}%`);
@@ -292,28 +287,9 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
 }
 
 async function loadBeachPosts() {
-  if (Date.now() < beachBackoffUntil) {
-    throw new Error("Strand App tijdelijk overgeslagen tijdens back-off");
-  }
-
-  try {
-    const data = await fetchJson(CONFIG.beachPostsUrl);
-    if (data?.getstrandposten !== "success" || !Array.isArray(data.strandposten)) {
-      throw new Error("Ongeldige Strand App-response");
-    }
-    beachFailureCount = 0;
-    beachBackoffUntil = 0;
-    return data.strandposten;
-  } catch (error) {
-    beachFailureCount += 1;
-    const exponentialDelay = Math.min(
-      CONFIG.beachRetryBaseMs * (2 ** (beachFailureCount - 1)),
-      CONFIG.beachRetryMaxMs
-    );
-    beachBackoffUntil = Date.now() + Math.max(error?.retryAfterMs || 0, exponentialDelay);
-    console.warn("Strand App niet beschikbaar; laatst bekende gegevens blijven staan.", error);
-    throw error;
-  }
+  const data = await fetchJson(CONFIG.beachPostsUrl);
+  if (data?.getstrandposten !== "success" || !Array.isArray(data.strandposten)) throw new Error("Ongeldige Strand App-response");
+  return data.strandposten;
 }
 
 function scheduleLoad(delay) {
@@ -334,10 +310,9 @@ async function loadDashboard() {
     const combined = { weatherData: weatherData || cache.weatherData, marineData: marineData || cache.marineData, posts: posts || cache.posts || [] };
     applyData(combined.weatherData, combined.marineData, combined.posts, loaded < 3);
     saveCache(combined);
-    // Een storing van alleen de Strand App mag Open-Meteo niet elke minuut opnieuw belasten.
-    // Bij weer- of zeedatafouten volgt wel een snelle herpoging.
-    const coreSourcesLoaded = Boolean(weatherData && marineData);
-    scheduleLoad(coreSourcesLoaded ? CONFIG.refreshMs : CONFIG.retryMs);
+    // Een storing van alleen de Strand App mag Open-Meteo niet iedere minuut opnieuw belasten.
+    const coreSourcesAvailable = Boolean(weatherData || marineData);
+    scheduleLoad(coreSourcesAvailable ? CONFIG.refreshMs : CONFIG.retryMs);
   } else {
     const cache = loadCache();
     if (cache) applyData(cache.weatherData, cache.marineData, cache.posts, true);

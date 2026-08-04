@@ -30,9 +30,10 @@ body {
 }
 
 .ambient { position: fixed; inset: 0; overflow: hidden; pointer-events: none; opacity: 0.28; }
-.ambient-sun { position: absolute; width: 18vw; height: 18vw; right: -4vw; top: -7vw; border-radius: 50%; border: 1px solid rgba(255,255,255,.2); animation: slow-spin 42s linear infinite; }
+.ambient-sun { position: absolute; width: 18vw; height: 18vw; right: -4vw; top: -7vw; border-radius: 50%; border: 1px solid rgba(255,255,255,.2); animation: sun-spin 18s linear infinite; will-change: transform; transform: translateZ(0); }
 .ambient-sun::before, .ambient-sun::after { content: ""; position: absolute; inset: 14%; border: 2px dashed rgba(255,225,170,.35); border-radius: 50%; }
 .ambient-sun::after { inset: 32%; background: rgba(255,190,95,.3); border: 0; box-shadow: 0 0 5vw rgba(255,190,95,.42); }
+.ambient-sun > span { position: absolute; inset: -8%; border-radius: 50%; background: repeating-conic-gradient(from 0deg, rgba(255,225,170,.66) 0 5deg, transparent 5deg 18deg); -webkit-mask: radial-gradient(circle, transparent 0 54%, #000 55% 66%, transparent 67%); mask: radial-gradient(circle, transparent 0 54%, #000 55% 66%, transparent 67%); animation: sun-spin 8s linear infinite reverse; will-change: transform; transform: translateZ(0); }
 .ambient-wave { position: absolute; left: -15%; width: 130%; height: 12vh; bottom: -6vh; border-radius: 48% 52% 0 0 / 100% 100% 0 0; background: rgba(255,255,255,.08); }
 .wave-one { animation: ambient-wave 12s ease-in-out infinite alternate; }
 .wave-two { bottom: -8vh; opacity: .55; animation: ambient-wave 17s ease-in-out infinite alternate-reverse; }
@@ -78,9 +79,9 @@ body {
 .current-layout { height: calc(100% - 2vh); display: grid; grid-template-columns: 1.04fr .96fr; gap: 1.05vw; align-items: center; }
 .temperature-line { display: flex; align-items: center; gap: .75vw; }
 .weather-orbit { position: relative; width: clamp(64px,5.2vw,104px); height: clamp(64px,5.2vw,104px); display: grid; place-items: center; flex: 0 0 auto; }
-.weather-icon { position: relative; z-index: 3; font-size: clamp(43px,3.65vw,72px); filter: drop-shadow(0 .5vh .9vh rgba(0,0,0,.2)); animation: icon-float 3s ease-in-out infinite; }
-.sun-core { position: absolute; inset: 23%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff7bb, #f4b95e 55%, #ec8a37); box-shadow: 0 0 1.3vw rgba(255,184,83,.56); animation: sun-pulse 2.8s ease-in-out infinite; }
-.sun-rays { position: absolute; inset: 5%; border-radius: 50%; border: 2px dashed rgba(255,205,120,.74); animation: slow-spin 14s linear infinite; }
+.weather-icon { position: relative; z-index: 3; font-size: clamp(43px,3.65vw,72px); filter: drop-shadow(0 .5vh .9vh rgba(0,0,0,.2)); animation: icon-float 2.6s ease-in-out infinite; will-change: transform; }
+.sun-core { position: absolute; inset: 25%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff7bb, #f4b95e 55%, #ec8a37); box-shadow: 0 0 1.7vw rgba(255,184,83,.72); animation: sun-pulse 2.4s ease-in-out infinite; will-change: transform, opacity; }
+.sun-rays { position: absolute; inset: -2%; border-radius: 50%; background: repeating-conic-gradient(from 0deg, rgba(255,218,139,.95) 0 7deg, transparent 7deg 22.5deg); -webkit-mask: radial-gradient(circle, transparent 0 48%, #000 49% 66%, transparent 67%); mask: radial-gradient(circle, transparent 0 48%, #000 49% 66%, transparent 67%); filter: drop-shadow(0 0 .35vw rgba(255,194,91,.48)); animation: sun-spin 5.5s linear infinite; will-change: transform; transform: translateZ(0); }
 .temperature { font-size: clamp(68px,5.8vw,118px); line-height: .86; letter-spacing: -.06em; }
 .condition { margin: 1.05vh 0 0; font-size: clamp(18px,1.3vw,28px); }
 .location { margin: .4vh 0 0; color: var(--cream-soft); font-size: clamp(10px,.68vw,14px); }
@@ -91,11 +92,11 @@ body {
 
 .sea-card { grid-area: sea; position: relative; padding: 1.55vh 1.15vw 1.1vh; display: grid; grid-template-rows: auto minmax(0,1fr) auto; }
 .sea-visual { position: relative; min-height: 0; margin: .65vh 0 .55vh; overflow: hidden; border-radius: .8vw; background: linear-gradient(#a6d9e4 0%, #f2c59e 45%, #447d8b 46%, #1e5662 100%); }
-.sea-sun { position: absolute; width: 3.4vw; height: 3.4vw; right: 12%; top: 14%; border-radius: 50%; background: #ffd07a; box-shadow: 0 0 2vw rgba(255,199,103,.8); animation: sun-pulse 3.1s ease-in-out infinite; }
+.sea-sun { position: absolute; width: 3.4vw; height: 3.4vw; right: 12%; top: 14%; border-radius: 50%; background: #ffd07a; box-shadow: 0 0 2vw rgba(255,199,103,.8); animation: sea-sun-float 3.2s ease-in-out infinite; will-change: transform, opacity; }
 .sea-wave { position: absolute; left: -15%; width: 130%; height: 44%; bottom: -14%; border-radius: 50% 48% 0 0 / 80% 72% 0 0; }
-.sea-wave.back { background: rgba(124,211,226,.65); animation: sea-roll 6.5s ease-in-out infinite alternate; }
-.sea-wave.front { bottom: -23%; background: rgba(24,105,124,.88); animation: sea-roll 4.8s ease-in-out infinite alternate-reverse; }
-.sea-foam { position: absolute; left: -5%; bottom: 16%; width: 110%; height: 7%; border-top: 3px solid rgba(255,255,255,.72); border-radius: 50%; animation: foam-move 5.5s ease-in-out infinite alternate; }
+.sea-wave.back { background: rgba(124,211,226,.65); animation: sea-roll 4.2s ease-in-out infinite alternate; will-change: transform; }
+.sea-wave.front { bottom: -23%; background: rgba(24,105,124,.88); animation: sea-roll-front 3.3s ease-in-out infinite alternate; will-change: transform; }
+.sea-foam { position: absolute; left: -5%; bottom: 16%; width: 110%; height: 7%; border-top: 3px solid rgba(255,255,255,.82); border-radius: 50%; animation: foam-move 3.4s ease-in-out infinite alternate; will-change: transform; }
 .sea-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: .45vw; }
 .sea-stats > div { min-width: 0; padding: .62vh .52vw; border-radius: .62vw; background: rgba(255,255,255,.075); text-align: center; }
 .sea-stats small { display: block; color: var(--cream-soft); font-size: clamp(8px,.47vw,11px); text-transform: uppercase; letter-spacing: .05em; }
@@ -220,69 +221,13 @@ html[data-mode="laptop"] .dashboard { gap: .95vh .8vw; }
   .mode-label { order: 3; width: 100%; text-align: center; }
 }
 
-
-/* Compacte tv-correctie voor 1366×768 en vergelijkbare schermen/scalers. */
-@media (max-width: 1450px) and (max-height: 820px) and (min-width: 701px) {
-  html[data-mode="tv"] #app {
-    padding: 1.25vh 1.2vw .85vh;
-    grid-template-rows: 8.1vh minmax(0,1fr) 2.7vh;
-    gap: .72vh;
-  }
-
-  html[data-mode="tv"] .topbar-summary { display: none; }
-  html[data-mode="tv"] .topbar { grid-template-columns: 1fr auto; }
-  html[data-mode="tv"] .dashboard {
-    grid-template-columns: 1.05fr .92fr 1.08fr;
-    grid-template-rows: minmax(0,1.08fr) minmax(0,.92fr) 7.2vh 6.9vh;
-    gap: .72vh .62vw;
-  }
-
-  html[data-mode="tv"] .card { border-radius: 12px; }
-  html[data-mode="tv"] .current-card { padding: 1.15vh .9vw; }
-  html[data-mode="tv"] .sea-card,
-  html[data-mode="tv"] .forecast-card,
-  html[data-mode="tv"] .rescue-card { padding: 1vh .82vw .72vh; }
-
-  html[data-mode="tv"] .brand-block h1,
-  html[data-mode="tv"] .clock strong { font-size: clamp(34px,3vw,44px); }
-  html[data-mode="tv"] .temperature { font-size: clamp(62px,5.9vw,84px); }
-  html[data-mode="tv"] .condition { font-size: clamp(16px,1.32vw,20px); }
-  html[data-mode="tv"] .weather-orbit { width: clamp(54px,4.8vw,70px); height: clamp(54px,4.8vw,70px); }
-  html[data-mode="tv"] .weather-icon { font-size: clamp(38px,3.4vw,50px); }
-
-  html[data-mode="tv"] .metric { padding: .58vh .52vw; border-radius: 8px; }
-  html[data-mode="tv"] .metric strong,
-  html[data-mode="tv"] .sea-stats strong,
-  html[data-mode="tv"] .condition-item strong { font-size: clamp(12px,.92vw,16px); }
-  html[data-mode="tv"] .metric span,
-  html[data-mode="tv"] .sea-stats small,
-  html[data-mode="tv"] .condition-item small { font-size: clamp(8px,.5vw,10px); }
-
-  html[data-mode="tv"] .rescue-heading h2 { font-size: clamp(14px,1vw,18px); }
-  html[data-mode="tv"] .rescue-post { padding: .55vh .55vw; border-radius: 8px; }
-  html[data-mode="tv"] .rescue-post h3 { font-size: clamp(11px,.8vw,14px); }
-  html[data-mode="tv"] .rescue-state,
-  html[data-mode="tv"] .flag-block span,
-  html[data-mode="tv"] .no-flag,
-  html[data-mode="tv"] .rescue-disclaimer { font-size: clamp(8px,.5vw,10px); }
-
-  html[data-mode="tv"] .hourly-forecast { gap: .38vw; }
-  html[data-mode="tv"] .hour { padding: .42vh .15vw; border-radius: 8px; }
-  html[data-mode="tv"] .hour .icon { font-size: 1.25vw; }
-  html[data-mode="tv"] .conditions-strip,
-  html[data-mode="tv"] .advice-bar { border-radius: 10px; }
-  html[data-mode="tv"] .advice-bar { padding: .58vh .8vw; }
-  html[data-mode="tv"] .advice-bar strong { font-size: clamp(12px,.86vw,16px); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
-}
-
 @keyframes slow-spin { to { transform: rotate(360deg); } }
-@keyframes sun-pulse { 0%,100% { transform: scale(.96); opacity: .88; } 50% { transform: scale(1.06); opacity: 1; } }
+@keyframes sun-spin { from { transform: translateZ(0) rotate(0deg); } to { transform: translateZ(0) rotate(360deg); } }
+@keyframes sun-pulse { 0%,100% { transform: scale(.94); opacity: .82; } 50% { transform: scale(1.1); opacity: 1; } }
+@keyframes sea-sun-float { 0%,100% { transform: translateY(3%) scale(.94); opacity: .84; } 50% { transform: translateY(-8%) scale(1.08); opacity: 1; } }
 @keyframes icon-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5%); } }
-@keyframes sea-roll { 0% { transform: translateX(-3%) translateY(2%) rotate(-1deg); } 100% { transform: translateX(4%) translateY(-5%) rotate(1deg); } }
+@keyframes sea-roll { 0% { transform: translateX(-8%) translateY(4%) rotate(-1.5deg); } 100% { transform: translateX(7%) translateY(-8%) rotate(1.5deg); } }
+@keyframes sea-roll-front { 0% { transform: translateX(7%) translateY(3%) rotate(1deg); } 100% { transform: translateX(-8%) translateY(-7%) rotate(-1.2deg); } }
 @keyframes foam-move { 0% { transform: translateX(-4%) scaleX(.98); } 100% { transform: translateX(4%) scaleX(1.05); } }
 @keyframes ambient-wave { 0% { transform: translateX(-3%) scaleY(.85); } 100% { transform: translateX(4%) scaleY(1.18); } }
 @keyframes status-pulse { 0%,100% { opacity: .7; } 50% { opacity: 1; } }
