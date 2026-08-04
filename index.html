@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#bc5e42">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>Cosmico Beach — Dashboard 3.0.2</title>
-  <link rel="stylesheet" href="style.css?v=302">
+  <title>Cosmico Beach — Dashboard 3.0.3</title>
+  <link rel="stylesheet" href="style.css?v=303">
 </head>
 <body>
   <div class="ambient" aria-hidden="true">
@@ -62,20 +62,26 @@
         </div>
       </section>
 
-      <section class="card sea-card">
-        <div class="section-label">ZEE & KUST</div>
-        <div class="sea-visual" aria-hidden="true">
-          <div class="sea-sun"></div>
-          <div class="sea-wave back"></div>
-          <div class="sea-wave front"></div>
-          <div class="sea-foam"></div>
+      <section class="card media-card">
+        <div class="media-heading">
+          <div>
+            <div class="section-label">LIVE & ACTUEEL</div>
+            <h2 id="mediaTitle">Live vanuit Zandvoort</h2>
+          </div>
+          <div class="media-indicator"><span class="live-dot"></span><span>LIVE</span></div>
         </div>
-        <div class="sea-stats">
-          <div><small>Golven</small><strong id="waveHeight">-- m</strong></div>
-          <div><small>Watertemperatuur</small><strong id="waterTemperature">--°C</strong></div>
-          <div><small>Richting</small><strong id="waveDirection">--</strong></div>
-          <div><small>Periode</small><strong id="wavePeriod">-- sec</strong></div>
+        <div class="media-frame">
+          <iframe
+            id="liveCamera"
+            title="Live webcam Zandvoort Boulevard en strand"
+            src="https://www.youtube.com/embed/q0-DDh1zdY4?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen>
+          </iframe>
+          <div class="camera-fallback">Livecam wordt geladen…</div>
         </div>
+        <div class="slide-dots" aria-hidden="true"><span class="active"></span></div>
       </section>
 
       <section class="card forecast-card">
@@ -100,10 +106,20 @@
       </section>
 
       <section class="conditions-strip">
+        <div class="condition-item"><span class="condition-icon wave-icon">🌊</span><div><small>Golven</small><strong id="waveHeight">-- m</strong></div></div>
+        <div class="condition-item"><span class="condition-icon">🌡️</span><div><small>Zeetemperatuur</small><strong id="waterTemperature">--°C</strong></div></div>
+        <div class="condition-item tide-item">
+          <span class="condition-icon tide-icon">↕️</span>
+          <div>
+            <small>Getijden · modelindicatie</small>
+            <strong id="tideState">Waterstand laden…</strong>
+            <span class="tide-detail"><b id="tideHeight">Stand -- m</b> · Vloed <b id="nextHighTide">--:--</b> · Eb <b id="nextLowTide">--:--</b></span>
+          </div>
+        </div>
+        <div class="condition-item"><span class="condition-icon compass-icon">🧭</span><div><small>Golfrichting</small><strong id="waveDirection">--</strong></div></div>
+        <div class="condition-item"><span class="condition-icon period-icon">〰</span><div><small>Golfperiode</small><strong id="wavePeriod">-- sec</strong></div></div>
         <div class="condition-item"><span class="condition-icon">💧</span><div><small>Luchtvochtigheid</small><strong id="humidity">--%</strong></div></div>
         <div class="condition-item"><span class="condition-icon">🌅</span><div><small>Zonsondergang</small><strong id="sunset">--:--</strong></div></div>
-        <div class="condition-item"><span class="condition-icon wind-compass">➤</span><div><small>Windrichting</small><strong id="windDirection">--</strong></div></div>
-        <div class="condition-item"><span class="condition-icon">🌡️</span><div><small>Max. vandaag</small><strong id="dayMaximum">--°C</strong></div></div>
       </section>
 
       <section class="advice-bar">
@@ -117,14 +133,11 @@
 
     <footer>
       <span>Good food · Cold drinks · Beach life</span>
-      <div class="mode-label"><span id="modeName">AUTO</span> · DASHBOARD 3.0.2</div>
-      <div id="connectionState" class="connection-state">
-        <span class="connection-dot"></span>
-        <span id="connectionText">Verbinden…</span>
-      </div>
+      <div class="mode-label"><span id="modeName">AUTO</span> · DASHBOARD 3.0.3 · Data: Open-Meteo & Strand App</div>
+      <div id="connectionState" class="connection-state"><span class="connection-dot"></span><span id="connectionText">Verbinden…</span></div>
     </footer>
   </div>
 
-  <script src="script.js?v=302" defer></script>
+  <script src="script.js?v=303" defer></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 "use strict";
 
-/* COSMICO BEACH DASHBOARD 3.0.2 */
+/* COSMICO BEACH DASHBOARD 3.0.3 — complete layout */
 const CONFIG = {
   timezone: "Europe/Amsterdam",
   weatherUrl:
@@ -15,7 +15,7 @@ const CONFIG = {
     "https://marine-api.open-meteo.com/v1/marine" +
     "?latitude=52.39&longitude=4.45" +
     "&current=wave_height,wave_direction,wave_period" +
-    "&hourly=sea_surface_temperature,wave_height,wave_direction,wave_period" +
+    "&hourly=sea_surface_temperature,sea_level_height_msl,wave_height,wave_direction,wave_period" +
     "&timezone=Europe%2FAmsterdam&forecast_days=2",
   beachPostsUrl:
     "https://dashboard.strand-app.nl/api/beachposts/v1/overview?municipality=zandvoort",
@@ -23,27 +23,25 @@ const CONFIG = {
   retryMs: 60 * 1000,
   requestTimeoutMs: 12 * 1000,
   hardReloadMs: 6 * 60 * 60 * 1000,
-  cacheKey: "cosmico-dashboard-302-cache"
+  cacheKey: "cosmico-dashboard-303-cache"
 };
 
 document.documentElement.dataset.motion = "on";
-
 const $ = (id) => document.getElementById(id);
 let refreshTimer = null;
+let beachFailureCount = 0;
+let beachNextAttemptAt = 0;
 
 function setMode() {
-  const params = new URLSearchParams(window.location.search);
-  const requested = (params.get("mode") || "").toLowerCase();
+  const requested = (new URLSearchParams(window.location.search).get("mode") || "").toLowerCase();
   let mode = requested;
-
   if (!["tv", "laptop", "mobile"].includes(mode)) {
     if (window.innerWidth <= 700) mode = "mobile";
     else if (window.innerWidth >= 1500 && window.innerHeight >= 800) mode = "tv";
     else mode = "laptop";
   }
-
   document.documentElement.dataset.mode = mode;
-  if ($("modeName")) $("modeName").textContent = mode.toUpperCase();
+  setText("modeName", mode.toUpperCase());
 }
 
 function setText(id, value, fallback = "—") {
@@ -54,6 +52,12 @@ function setText(id, value, fallback = "—") {
 function numberText(value, decimals = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number.toFixed(decimals) : "—";
+}
+
+function signedNumberText(value, decimals = 2) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "—";
+  return `${number >= 0 ? "+" : ""}${number.toFixed(decimals)}`;
 }
 
 function formatClock(date) {
@@ -74,12 +78,12 @@ function formatApiTime(value) {
 
 function weatherInfo(code) {
   const map = {
-    0: ["Onbewolkt", "☀️"], 1: ["Vrij zonnig", "🌤️"], 2: ["Halfbewolkt", "⛅"], 3: ["Bewolkt", "☁️"],
-    45: ["Mist", "🌫️"], 48: ["Rijpmist", "🌫️"], 51: ["Lichte motregen", "🌦️"], 53: ["Motregen", "🌦️"],
-    55: ["Stevige motregen", "🌧️"], 61: ["Lichte regen", "🌦️"], 63: ["Regen", "🌧️"], 65: ["Zware regen", "🌧️"],
-    71: ["Lichte sneeuw", "🌨️"], 73: ["Sneeuw", "🌨️"], 75: ["Zware sneeuw", "❄️"],
-    80: ["Lichte buien", "🌦️"], 81: ["Buien", "🌧️"], 82: ["Zware buien", "⛈️"],
-    95: ["Onweer", "⛈️"], 96: ["Onweer met hagel", "⛈️"], 99: ["Zwaar onweer", "⛈️"]
+    0:["Onbewolkt","☀️"], 1:["Vrij zonnig","🌤️"], 2:["Halfbewolkt","⛅"], 3:["Bewolkt","☁️"],
+    45:["Mist","🌫️"], 48:["Rijpmist","🌫️"], 51:["Lichte motregen","🌦️"], 53:["Motregen","🌦️"],
+    55:["Stevige motregen","🌧️"], 61:["Lichte regen","🌦️"], 63:["Regen","🌧️"], 65:["Zware regen","🌧️"],
+    71:["Lichte sneeuw","🌨️"], 73:["Sneeuw","🌨️"], 75:["Zware sneeuw","❄️"],
+    80:["Lichte buien","🌦️"], 81:["Buien","🌧️"], 82:["Zware buien","⛈️"],
+    95:["Onweer","⛈️"], 96:["Onweer met hagel","⛈️"], 99:["Zwaar onweer","⛈️"]
   };
   return map[Number(code)] || ["Wisselend", "🌤️"];
 }
@@ -87,7 +91,7 @@ function weatherInfo(code) {
 function compassDirection(degrees) {
   const value = Number(degrees);
   if (!Number.isFinite(value)) return "—";
-  const labels = ["N", "NNO", "NO", "ONO", "O", "OZO", "ZO", "ZZO", "Z", "ZZW", "ZW", "WZW", "W", "WNW", "NW", "NNW"];
+  const labels = ["N","NNO","NO","ONO","O","OZO","ZO","ZZO","Z","ZZW","ZW","WZW","W","WNW","NW","NNW"];
   return labels[Math.round((((value % 360) + 360) % 360) / 22.5) % 16];
 }
 
@@ -101,20 +105,14 @@ async function fetchJson(url, timeoutMs = CONFIG.requestTimeoutMs) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, {
-      cache: "no-store",
-      credentials: "omit",
-      signal: controller.signal
-    });
+    const response = await fetch(url, { cache: "no-store", credentials: "omit", signal: controller.signal });
     if (!response.ok) {
       const error = new Error(`HTTP ${response.status}`);
       error.status = response.status;
       const retryAfter = response.headers.get("Retry-After");
       if (retryAfter) {
         const seconds = Number(retryAfter);
-        error.retryAfterMs = Number.isFinite(seconds)
-          ? seconds * 1000
-          : Math.max(0, new Date(retryAfter).getTime() - Date.now());
+        error.retryAfterMs = Number.isFinite(seconds) ? seconds * 1000 : Math.max(0, new Date(retryAfter).getTime() - Date.now());
       }
       throw error;
     }
@@ -124,16 +122,21 @@ async function fetchJson(url, timeoutMs = CONFIG.requestTimeoutMs) {
   }
 }
 
-function nearestHourlyValue(hourly, field) {
-  if (!Array.isArray(hourly?.time) || !Array.isArray(hourly?.[field])) return null;
+function nearestHourlyIndex(hourly) {
+  if (!Array.isArray(hourly?.time)) return -1;
   const now = Date.now();
-  let best = 0;
+  let bestIndex = 0;
   let distance = Infinity;
   hourly.time.forEach((value, index) => {
     const currentDistance = Math.abs(new Date(value).getTime() - now);
-    if (currentDistance < distance) { distance = currentDistance; best = index; }
+    if (currentDistance < distance) { distance = currentDistance; bestIndex = index; }
   });
-  return hourly[field][best];
+  return bestIndex;
+}
+
+function nearestHourlyValue(hourly, field) {
+  const index = nearestHourlyIndex(hourly);
+  return index >= 0 && Array.isArray(hourly?.[field]) ? hourly[field][index] : null;
 }
 
 function renderHourly(hourly) {
@@ -145,15 +148,48 @@ function renderHourly(hourly) {
   const cards = [];
   for (let i = start; i < Math.min(start + 6, hourly.time.length); i += 1) {
     const [, icon] = weatherInfo(hourly.weather_code?.[i]);
-    cards.push(`
-      <div class="hour">
-        <span class="time">${formatClock(new Date(hourly.time[i]))}</span>
-        <span class="icon">${icon}</span>
-        <strong class="degrees">${numberText(hourly.temperature_2m?.[i])}°</strong>
-        <span class="rain">💧 ${numberText(hourly.precipitation_probability?.[i])}%</span>
-      </div>`);
+    cards.push(`<div class="hour"><span class="time">${formatClock(new Date(hourly.time[i]))}</span><span class="icon">${icon}</span><strong class="degrees">${numberText(hourly.temperature_2m?.[i])}°</strong><span class="rain">💧 ${numberText(hourly.precipitation_probability?.[i])}%</span></div>`);
   }
   container.innerHTML = cards.join("");
+}
+
+function renderTide(hourly) {
+  const times = hourly?.time;
+  const levels = hourly?.sea_level_height_msl;
+  if (!Array.isArray(times) || !Array.isArray(levels) || times.length < 4) {
+    setText("tideState", "Model tijdelijk niet beschikbaar");
+    setText("tideHeight", "Stand -- m");
+    setText("nextHighTide", "--:--");
+    setText("nextLowTide", "--:--");
+    return;
+  }
+
+  const now = Date.now();
+  let nearest = nearestHourlyIndex(hourly);
+  nearest = Math.max(1, Math.min(nearest, levels.length - 2));
+  const current = Number(levels[nearest]);
+  const previous = Number(levels[nearest - 1]);
+  const next = Number(levels[nearest + 1]);
+  const delta = next - previous;
+  const state = delta > 0.025 ? "Opkomend water" : delta < -0.025 ? "Afgaand water" : "Kentering rond hoog/laag water";
+
+  let nextHigh = null;
+  let nextLow = null;
+  for (let i = Math.max(1, nearest); i < levels.length - 1; i += 1) {
+    const time = new Date(times[i]).getTime();
+    if (time < now - 60 * 60 * 1000) continue;
+    const a = Number(levels[i - 1]);
+    const b = Number(levels[i]);
+    const c = Number(levels[i + 1]);
+    if (!nextHigh && b >= a && b > c) nextHigh = new Date(times[i]);
+    if (!nextLow && b <= a && b < c) nextLow = new Date(times[i]);
+    if (nextHigh && nextLow) break;
+  }
+
+  setText("tideState", state);
+  setText("tideHeight", `Stand ${signedNumberText(current, 2)} m`);
+  setText("nextHighTide", nextHigh ? formatClock(nextHigh) : "--:--");
+  setText("nextLowTide", nextLow ? formatClock(nextLow) : "--:--");
 }
 
 function findPost(posts, terms) {
@@ -168,11 +204,7 @@ function renderFlag(post) {
   const image = post.flag_img_no_text || post.flag_img || "";
   const text = post.flag_text || "Waarschuwingsvlag actief";
   const extended = post.flag_extended_text || "";
-  return `
-    <div class="flag-block">
-      ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(text)}">` : "<span>🚩</span>"}
-      <div><strong>${escapeHtml(text)}</strong>${extended ? `<span>${escapeHtml(extended)}</span>` : ""}</div>
-    </div>`;
+  return `<div class="flag-block">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(text)}">` : "<span>🚩</span>"}<div><strong>${escapeHtml(text)}</strong>${extended ? `<span>${escapeHtml(extended)}</span>` : ""}</div></div>`;
 }
 
 function renderRescuePost(post, fallbackName) {
@@ -181,15 +213,7 @@ function renderRescuePost(post, fallbackName) {
   }
   const active = post.state_status === true;
   const stateText = post.state_text || post.state || (active ? "Lifeguards houden toezicht." : "Geen toezicht. Zwemmen op eigen risico.");
-  return `
-    <article class="rescue-post">
-      <div class="rescue-post-top">
-        <h3>${escapeHtml(post.name || fallbackName)}</h3>
-        <div class="lifeguard-status"><span class="status-light ${active ? "on" : "off"}"></span>${active ? "Lifeguards aanwezig" : "Geen toezicht"}</div>
-      </div>
-      <p class="rescue-state">${escapeHtml(stateText)}</p>
-      ${renderFlag(post)}
-    </article>`;
+  return `<article class="rescue-post"><div class="rescue-post-top"><h3>${escapeHtml(post.name || fallbackName)}</h3><div class="lifeguard-status"><span class="status-light ${active ? "on" : "off"}"></span>${active ? "Lifeguards aanwezig" : "Geen toezicht"}</div></div><p class="rescue-state">${escapeHtml(stateText)}</p>${renderFlag(post)}</article>`;
 }
 
 function renderRescuePosts(posts) {
@@ -208,22 +232,17 @@ function buildAdvice(weather, marine, uv) {
   const uvIndex = Number(uv);
   const code = Number(weather.weather_code);
   const parts = [];
-
   if (code >= 95) parts.push("Bij onweer direct het strand en het water verlaten.");
   else if ([61,63,65,80,81,82].includes(code)) parts.push("Houd rekening met regen of buien.");
   else if (temperature >= 22) parts.push("Heerlijk strandweer.");
   else if (temperature < 16) parts.push("Het is fris aan zee.");
   else parts.push("Prima weer voor een bezoek aan het strand.");
-
   if (wind >= 40 || gusts >= 55) parts.push("Veel wind: zet losse spullen goed vast.");
   else if (wind >= 25) parts.push("Er staat een stevige zeewind.");
-
   if (wave >= 1.5) parts.push("Stevige golven: wees extra voorzichtig in zee.");
   else if (wave >= .8) parts.push("Houd rekening met merkbare golfslag.");
-
   if (uvIndex >= 6) parts.push("UV is hoog, dus goed en regelmatig insmeren.");
   else if (uvIndex >= 3) parts.push("Bescherm je huid tegen de zon.");
-
   return parts.slice(0, 3).concat("De officiële vlaggen en aanwijzingen zijn altijd leidend.").join(" ");
 }
 
@@ -238,10 +257,7 @@ function saveCache(data) {
 }
 
 function loadCache() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(CONFIG.cacheKey) || "null");
-    return parsed?.data || null;
-  } catch (_) { return null; }
+  try { return JSON.parse(localStorage.getItem(CONFIG.cacheKey) || "null")?.data || null; } catch (_) { return null; }
 }
 
 function applyData(weatherData, marineData, posts, fromCache = false) {
@@ -259,26 +275,23 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
   setText("condition", description);
   setText("headerCondition", description);
   setText("feelsLike", `${numberText(current.apparent_temperature)}°C`);
-  setText("wind", `${numberText(current.wind_speed_10m)} km/u`);
+  setText("wind", `${numberText(current.wind_speed_10m)} km/u ${compassDirection(current.wind_direction_10m)}`);
   setText("windGusts", `${numberText(current.wind_gusts_10m)} km/u`);
   setText("uvIndex", numberText(uv, 1));
   setText("precipitation", `${numberText(current.precipitation, 1)} mm`);
+
   const visibilityValue = Number(current.visibility);
   const visibilityUnit = String(weatherData?.current_units?.visibility || "m").toLowerCase();
   const visibilityKm = visibilityUnit === "km" ? visibilityValue : visibilityValue / 1000;
   setText("visibility", Number.isFinite(visibilityKm) ? `${visibilityKm.toFixed(0)} km` : "—");
   setText("humidity", `${numberText(current.relative_humidity_2m)}%`);
   setText("sunset", formatApiTime(daily.sunset?.[0]));
-  setText("dayMaximum", `${numberText(daily.temperature_2m_max?.[0])}°C`);
-  setText("windDirection", compassDirection(current.wind_direction_10m));
-
-  const compass = document.querySelector(".wind-compass");
-  if (compass && Number.isFinite(Number(current.wind_direction_10m))) compass.style.setProperty("--wind-rotation", `${Number(current.wind_direction_10m)}deg`);
 
   setText("waveHeight", `${numberText(marine.wave_height, 1)} m`);
   setText("waveDirection", compassDirection(marine.wave_direction));
   setText("wavePeriod", `${numberText(marine.wave_period, 1)} sec`);
   setText("waterTemperature", `${numberText(nearestHourlyValue(marineHourly, "sea_surface_temperature"), 1)}°C`);
+  renderTide(marineHourly);
 
   if (weatherData?.hourly) renderHourly(weatherData.hourly);
   renderRescuePosts(Array.isArray(posts) ? posts : []);
@@ -287,9 +300,24 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
 }
 
 async function loadBeachPosts() {
-  const data = await fetchJson(CONFIG.beachPostsUrl);
-  if (data?.getstrandposten !== "success" || !Array.isArray(data.strandposten)) throw new Error("Ongeldige Strand App-response");
-  return data.strandposten;
+  if (Date.now() < beachNextAttemptAt) {
+    const error = new Error("Strand App tijdelijk overgeslagen tijdens back-off");
+    error.skipped = true;
+    throw error;
+  }
+  try {
+    const data = await fetchJson(CONFIG.beachPostsUrl);
+    if (data?.getstrandposten !== "success" || !Array.isArray(data.strandposten)) throw new Error("Ongeldige Strand App-response");
+    beachFailureCount = 0;
+    beachNextAttemptAt = 0;
+    return data.strandposten;
+  } catch (error) {
+    beachFailureCount += 1;
+    const backoffMinutes = Math.min(60, 5 * (2 ** Math.max(0, beachFailureCount - 1)));
+    const backoffMs = Number.isFinite(error.retryAfterMs) && error.retryAfterMs > 0 ? error.retryAfterMs : backoffMinutes * 60 * 1000;
+    beachNextAttemptAt = Date.now() + backoffMs;
+    throw error;
+  }
 }
 
 function scheduleLoad(delay) {
@@ -307,12 +335,14 @@ async function loadDashboard() {
 
   if (weatherData || marineData || posts) {
     const cache = loadCache() || {};
-    const combined = { weatherData: weatherData || cache.weatherData, marineData: marineData || cache.marineData, posts: posts || cache.posts || [] };
+    const combined = {
+      weatherData: weatherData || cache.weatherData,
+      marineData: marineData || cache.marineData,
+      posts: posts || cache.posts || []
+    };
     applyData(combined.weatherData, combined.marineData, combined.posts, loaded < 3);
     saveCache(combined);
-    // Een storing van alleen de Strand App mag Open-Meteo niet iedere minuut opnieuw belasten.
-    const coreSourcesAvailable = Boolean(weatherData || marineData);
-    scheduleLoad(coreSourcesAvailable ? CONFIG.refreshMs : CONFIG.retryMs);
+    scheduleLoad((weatherData || marineData) ? CONFIG.refreshMs : CONFIG.retryMs);
   } else {
     const cache = loadCache();
     if (cache) applyData(cache.weatherData, cache.marineData, cache.posts, true);
@@ -320,6 +350,7 @@ async function loadDashboard() {
       setConnection(false, "Live gegevens niet beschikbaar");
       setText("beachAdvice", "De live gegevens konden niet worden opgehaald. Volg de officiële informatie en aanwijzingen ter plaatse.");
       renderRescuePosts([]);
+      renderTide(null);
     }
     scheduleLoad(CONFIG.retryMs);
   }
