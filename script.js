@@ -1,6 +1,6 @@
 "use strict";
 
-/* COSMICO BEACH DASHBOARD 3.1 — dag/nacht thema, windkompas, tide-sparkline */
+/* COSMICO BEACH DASHBOARD 3.2 — versterkte strandveiligheid en tv-weergave */
 const CONFIG = {
   timezone: "Europe/Amsterdam",
   weatherUrl:
@@ -23,7 +23,7 @@ const CONFIG = {
   retryMs: 60 * 1000,
   requestTimeoutMs: 12 * 1000,
   hardReloadMs: 6 * 60 * 60 * 1000,
-  cacheKey: "cosmico-dashboard-310-cache",
+  cacheKey: "cosmico-dashboard-320-cache",
   dawnDuskWindowMs: 45 * 60 * 1000
 };
 
@@ -312,29 +312,180 @@ function findPost(posts, terms) {
   });
 }
 
-function renderFlag(post) {
-  if (!post?.flag_status) return '<div class="no-flag">Geen actieve waarschuwingsvlag gemeld.</div>';
-  const image = post.flag_img_no_text || post.flag_img || "";
-  const text = post.flag_text || "Waarschuwingsvlag actief";
-  const extended = post.flag_extended_text || "";
-  return `<div class="flag-block">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(text)}">` : "<span>🚩</span>"}<div><strong>${escapeHtml(text)}</strong>${extended ? `<span>${escapeHtml(extended)}</span>` : ""}</div></div>`;
+function rescueSeverity(post, active) {
+  const text = [
+    post?.flag_text,
+    post?.flag_extended_text,
+    post?.state_text,
+    post?.state
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  if (
+    text.includes("verboden") ||
+    text.includes("niet zwemmen") ||
+    text.includes("zeer gevaarlijk") ||
+    text.includes("rode vlag") ||
+    text.includes("red flag")
+  ) {
+    return "danger";
+  }
+
+  if (
+    post?.flag_status === true ||
+    text.includes("waarschuwing") ||
+    text.includes("gevaarlijk") ||
+    text.includes("gele vlag") ||
+    text.includes("oranje vlag") ||
+    text.includes("warning")
+  ) {
+    return "warning";
+  }
+
+  return active ? "guarded" : "off";
 }
 
-function renderRescuePost(post, fallbackName) {
-  if (!post) {
-    return `<article class="rescue-post"><div class="rescue-post-top"><h3>${fallbackName}</h3><div class="lifeguard-status"><span class="status-light"></span>Status onbekend</div></div><p class="rescue-state">De actuele status kon niet worden opgehaald.</p><div class="no-flag">Controleer de vlaggen en aanwijzingen ter plaatse.</div></article>`;
+function rescueIcon(severity, active) {
+  if (severity === "danger") return "⛔";
+  if (severity === "warning") return "⚠";
+  if (active) return "🛟";
+  return "◼";
+}
+
+function compactFlagText(post) {
+  const text = String(post?.flag_text || "").trim();
+
+  if (!text) {
+    return post?.flag_status ? "Waarschuwing actief" : "Geen actieve waarschuwing";
   }
+
+  return text
+    .replace(/^let op[!:\s-]*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function renderFlag(post, severity) {
+  if (!post?.flag_status) {
+    return `
+      <div class="safety-message safety-message-clear">
+        <span class="safety-mini-icon">✓</span>
+        <div>
+          <strong>Geen actieve waarschuwing</strong>
+          <span>Controleer altijd de vlaggen ter plaatse.</span>
+        </div>
+      </div>
+    `;
+  }
+
+  const image = post.flag_img_no_text || post.flag_img || "";
+  const text = compactFlagText(post);
+  const extended = post.flag_extended_text || "";
+
+  return `
+    <div class="safety-message safety-message-${severity}">
+      ${
+        image
+          ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(text)}">`
+          : `<span class="safety-mini-icon">${severity === "danger" ? "⛔" : "⚠"}</span>`
+      }
+      <div>
+        <strong>${escapeHtml(text)}</strong>
+        ${extended ? `<span>${escapeHtml(extended)}</span>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderRescuePost(post, label) {
+  if (!post) {
+    return `
+      <article class="rescue-post safety-unknown">
+        <div class="rescue-copy">
+          <div class="rescue-post-top">
+            <h3>${escapeHtml(label)}</h3>
+            <div class="lifeguard-status status-unknown">
+              <span class="status-light"></span>
+              STATUS ONBEKEND
+            </div>
+          </div>
+
+          <p class="rescue-state">De actuele status kon niet worden opgehaald.</p>
+
+          <div class="safety-message safety-message-clear">
+            <span class="safety-mini-icon">?</span>
+            <div>
+              <strong>Controleer ter plaatse</strong>
+              <span>Volg de actuele vlaggen en aanwijzingen.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="rescue-symbol" aria-hidden="true">
+          <span>?</span>
+          <strong>ONBEKEND</strong>
+        </div>
+      </article>
+    `;
+  }
+
   const active = post.state_status === true;
-  const stateText = post.state_text || post.state || (active ? "Lifeguards houden toezicht." : "Geen toezicht. Zwemmen op eigen risico.");
-  return `<article class="rescue-post"><div class="rescue-post-top"><h3>${escapeHtml(post.name || fallbackName)}</h3><div class="lifeguard-status"><span class="status-light ${active ? "on" : "off"}"></span>${active ? "Lifeguards aanwezig" : "Geen toezicht"}</div></div><p class="rescue-state">${escapeHtml(stateText)}</p>${renderFlag(post)}</article>`;
+  const severity = rescueSeverity(post, active);
+  const stateText =
+    post.state_text ||
+    post.state ||
+    (active
+      ? "Lifeguards houden toezicht."
+      : "Geen toezicht. Zwemmen op eigen risico.");
+
+  const statusText = active ? "BEWAAKT" : "GEEN TOEZICHT";
+  const symbolText =
+    severity === "danger"
+      ? "NIET ZWEMMEN"
+      : severity === "warning"
+        ? "WAARSCHUWING"
+        : active
+          ? "LIFEGUARD"
+          : "EIGEN RISICO";
+
+  return `
+    <article class="rescue-post safety-${severity}">
+      <div class="rescue-copy">
+        <div class="rescue-post-top">
+          <h3>${escapeHtml(label)}</h3>
+
+          <div class="lifeguard-status status-${active ? "guarded" : "off"}">
+            <span class="status-light ${active ? "on" : "off"}"></span>
+            ${statusText}
+          </div>
+        </div>
+
+        <p class="rescue-state">${escapeHtml(stateText)}</p>
+        ${renderFlag(post, severity)}
+      </div>
+
+      <div class="rescue-symbol" aria-hidden="true">
+        <span>${rescueIcon(severity, active)}</span>
+        <strong>${symbolText}</strong>
+      </div>
+    </article>
+  `;
 }
 
 function renderRescuePosts(posts) {
   const container = $("rescuePosts");
   if (!container) return;
-  const north = findPost(posts, ["zvt noord", "zandvoort noord"]) || findPost(posts, ["noord"]);
-  const south = findPost(posts, ["zvt zuid", "zandvoort zuid"]) || findPost(posts, ["zuid"]);
-  container.innerHTML = renderRescuePost(north, "Reddingspost ZVT Noord") + renderRescuePost(south, "Reddingspost ZVT Zuid");
+
+  const north =
+    findPost(posts, ["zvt noord", "zandvoort noord"]) ||
+    findPost(posts, ["noord"]);
+
+  const south =
+    findPost(posts, ["zvt zuid", "zandvoort zuid"]) ||
+    findPost(posts, ["zuid"]);
+
+  container.innerHTML =
+    renderRescuePost(north, "▲ NOORD") +
+    renderRescuePost(south, "▼ ZUID");
 }
 
 function buildAdvice(weather, marine, uv) {

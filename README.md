@@ -1,33 +1,41 @@
-# Cosmico Beach Dashboard 2.1
+# Cosmico Beach Dashboard 3.2
 
-Deze versie bevat:
+Versie 3.2 versterkt vooral de **officiële strandinformatie**.
 
-1. Getijdenindicatie met opkomend/afgaand water en volgende vloed/eb.
-2. Zeetemperatuur.
-3. Slim strandadvies op basis van weer, wind, golven, UV en zeetemperatuur.
-4. Een grotere webcamweergave.
-5. Duidelijke status van de Reddingsbrigade: BEWAAKT of GEEN TOEZICHT.
+## Nieuw
 
-## Databronnen
+- `▲ NOORD` en `▼ ZUID` in plaats van interne postnamen.
+- Grote badges: **BEWAAKT**, **GEEN TOEZICHT** en **STATUS ONBEKEND**.
+- Veiligheidskleuren:
+  - groen: bewaakt;
+  - grijs: geen toezicht;
+  - geel: waarschuwing;
+  - rood: ernstig gevaar of niet zwemmen.
+- Groot veiligheidspictogram per reddingspost.
+- Compactere weergave van actieve vlaggen.
+- Subtiele TV-crop van de webcam om zwarte zijbalken te beperken.
+- Alle bestaande 3.1-functies blijven behouden.
 
-- Open-Meteo Weather API
-- Open-Meteo Marine API
-- Productie-API van Strand App
+## Modi
 
-## Belangrijk over getijden
+- TV: `https://dashboard.cosmicobeach.nl/?mode=tv&v=320`
+- Laptop: `https://dashboard.cosmicobeach.nl/?mode=laptop&v=320`
+- Mobiel: `https://dashboard.cosmicobeach.nl/?mode=mobile&v=320`
 
-De getijden zijn een modelindicatie uit de Open-Meteo Marine API. Ze zijn geschikt
-als publieksinformatie, maar niet voor kustnavigatie. De officiële informatie en
-aanwijzingen ter plaatse blijven altijd leidend.
+## Installatie
 
-## Uploaden
+Vervang in de root van de GitHub-repository:
 
-Vervang in de root van je GitHub-repository:
+- `index.html`
+- `style.css`
+- `script.js`
+- `CNAME`
+- `README.txt`
+- `README.md`
 
-- index.html
-- style.css
-- script.js
-- CNAME
-- assets/cosmico-watermark.jpg
+Commit en push daarna naar GitHub.
 
-Daarna committen en pushen. De bestanden gebruiken cacheversie `v=210`.
+## Veiligheid
+
+Getijden- en waterstandgegevens zijn modelindicaties. De officiële
+strandvlaggen en instructies van de reddingsbrigade blijven altijd leidend.

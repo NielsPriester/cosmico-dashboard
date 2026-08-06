@@ -268,3 +268,278 @@ html[data-mode="laptop"] .card { border-radius:1vw; }
 @keyframes wave-bob { 0%,100% { transform:translateY(1px) rotate(-2deg); } 50% { transform:translateY(-3px) rotate(2deg); } }
 @keyframes compass-wobble { 0%,100% { transform:rotate(-7deg); } 50% { transform:rotate(7deg); } }
 @keyframes period-wave { 0%,100% { transform:scaleX(.9) translateY(1px); } 50% { transform:scaleX(1.16) translateY(-1px); } }
+
+
+/* =========================================================
+   COSMICO BEACH DASHBOARD 3.2
+   Versterkte strandveiligheid + scherpere TV-presentatie
+   ========================================================= */
+
+.rescue-post {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(74px, 7.2vw, 132px);
+  padding: 0;
+  border-width: 1px;
+  background: rgba(255, 255, 255, .065);
+}
+
+.rescue-copy {
+  min-width: 0;
+  padding: .85vh .75vw;
+}
+
+.rescue-symbol {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .4vh;
+  padding: .65vh .35vw;
+  border-left: 1px solid rgba(255,255,255,.12);
+  text-align: center;
+}
+
+.rescue-symbol span {
+  font-size: clamp(24px, 2.35vw, 48px);
+  line-height: 1;
+  filter: drop-shadow(0 .35vh .5vh rgba(0,0,0,.25));
+}
+
+.rescue-symbol strong {
+  font-size: clamp(8px, .55vw, 12px);
+  line-height: 1.05;
+  letter-spacing: .055em;
+}
+
+.rescue-post h3 {
+  font-size: clamp(14px, 1.05vw, 21px);
+  letter-spacing: .025em;
+}
+
+.lifeguard-status {
+  padding: .42vh .55vw;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 999px;
+  letter-spacing: .055em;
+  background: rgba(0,0,0,.18);
+}
+
+.status-guarded {
+  color: #e2ffef;
+  border-color: rgba(130,216,173,.46);
+  background: rgba(66,144,104,.28);
+}
+
+.status-off {
+  color: #ffe6df;
+  border-color: rgba(255,114,98,.44);
+  background: rgba(138,54,43,.3);
+}
+
+.status-unknown {
+  color: var(--cream-soft);
+}
+
+.rescue-state {
+  margin-top: .62vh;
+  font-size: clamp(10px, .62vw, 13px);
+  color: var(--cream);
+}
+
+.safety-message {
+  margin-top: .62vh;
+  padding-top: .52vh;
+  border-top: 1px solid rgba(255,255,255,.14);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: .55vw;
+}
+
+.safety-message img {
+  width: clamp(30px, 2.45vw, 48px);
+  height: clamp(30px, 3.8vh, 46px);
+  object-fit: contain;
+  background: rgba(255,255,255,.92);
+  border-radius: .2vw;
+}
+
+.safety-mini-icon {
+  width: clamp(28px, 2.15vw, 42px);
+  height: clamp(28px, 3.6vh, 42px);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,.1);
+  font-size: clamp(15px, 1.15vw, 23px);
+  font-weight: 900;
+}
+
+.safety-message strong {
+  display: block;
+  font-size: clamp(10px, .65vw, 14px);
+  line-height: 1.05;
+}
+
+.safety-message span:not(.safety-mini-icon) {
+  display: -webkit-box;
+  margin-top: .16vh;
+  overflow: hidden;
+  color: var(--cream-soft);
+  font-size: clamp(8px, .48vw, 11px);
+  line-height: 1.15;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.safety-guarded {
+  border-color: rgba(130,216,173,.38);
+  background:
+    linear-gradient(115deg, rgba(49,116,83,.24), rgba(255,255,255,.045));
+}
+
+.safety-guarded .rescue-symbol {
+  color: #e1ffed;
+  background: rgba(77,158,111,.2);
+}
+
+.safety-off {
+  border-color: rgba(180,180,180,.25);
+  background:
+    linear-gradient(115deg, rgba(22,22,22,.42), rgba(255,255,255,.04));
+}
+
+.safety-off .rescue-symbol {
+  color: #f5ebe6;
+  background: rgba(0,0,0,.22);
+}
+
+.safety-warning {
+  border-color: rgba(255,220,0,.78);
+  background:
+    linear-gradient(115deg, rgba(133,113,0,.52), rgba(255,214,0,.09));
+  box-shadow: inset 0 0 0 1px rgba(255,220,0,.13);
+}
+
+.safety-warning .rescue-symbol {
+  color: #211b00;
+  background: linear-gradient(180deg, #ffe600, #f6d900);
+}
+
+.safety-warning .safety-message strong {
+  color: #ffd66f;
+}
+
+.safety-danger {
+  border-color: rgba(255,84,69,.82);
+  background:
+    linear-gradient(115deg, rgba(128,24,20,.6), rgba(255,78,61,.1));
+  box-shadow: inset 0 0 0 1px rgba(255,84,69,.16);
+}
+
+.safety-danger .rescue-symbol {
+  color: #fff;
+  background: linear-gradient(180deg, #ce2d25, #8f1814);
+}
+
+.safety-danger .safety-message strong {
+  color: #ff9b8f;
+}
+
+.safety-unknown .rescue-symbol {
+  color: var(--cream-soft);
+  background: rgba(255,255,255,.06);
+}
+
+.safety-message-clear strong {
+  color: var(--cream);
+}
+
+/* De bron is smaller dan 16:9. In TV-modus croppen we subtiel,
+   zodat de webcamkaart minder zwarte zijbalken toont. */
+html[data-mode="tv"] .media-frame iframe {
+  width: 112%;
+  height: 112%;
+  margin-left: -6%;
+  margin-top: -3%;
+}
+
+html[data-mode="tv"] .rescue-post {
+  grid-template-columns: minmax(0, 1fr) clamp(88px, 7.8vw, 150px);
+}
+
+html[data-mode="tv"] .rescue-symbol strong {
+  font-size: clamp(10px, .62vw, 14px);
+}
+
+html[data-mode="tv"] .lifeguard-status {
+  font-size: clamp(10px, .66vw, 14px);
+}
+
+@media (max-width: 1450px) and (min-width: 701px), (max-height: 800px) and (min-width: 701px) {
+  .rescue-post {
+    grid-template-columns: minmax(0, 1fr) clamp(64px, 6.3vw, 96px);
+  }
+
+  .rescue-copy {
+    padding: .62vh .62vw;
+  }
+
+  .rescue-symbol span {
+    font-size: clamp(20px, 2vw, 34px);
+  }
+
+  .safety-message span:not(.safety-mini-icon) {
+    -webkit-line-clamp: 1;
+  }
+}
+
+@media (max-width: 700px) {
+  .rescue-posts {
+    grid-template-columns: 1fr;
+  }
+
+  .rescue-post {
+    grid-template-columns: minmax(0, 1fr) 92px;
+    min-height: 174px;
+  }
+
+  .rescue-copy {
+    padding: 13px;
+  }
+
+  .rescue-post-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rescue-symbol {
+    padding: 10px 6px;
+  }
+
+  .rescue-symbol span {
+    font-size: 34px;
+  }
+
+  .rescue-symbol strong {
+    font-size: 9px;
+  }
+
+  .lifeguard-status {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .rescue-state {
+    font-size: 12px;
+  }
+
+  .safety-message strong {
+    font-size: 12px;
+  }
+
+  .safety-message span:not(.safety-mini-icon) {
+    font-size: 10px;
+  }
+}

@@ -1,60 +1,47 @@
-COSMICO BEACH DASHBOARD 3.1 — VERBETERDE RELEASE
-=================================================
+COSMICO BEACH DASHBOARD 3.2 — STRANDVEILIGHEID RELEASE
+==========================================================
 
-Wat is er veranderd t.o.v. 3.0.3:
-- Dag/nacht-adaptief thema: kleuren en achtergrond schuiven automatisch mee
-  met zonsopgang/-ondergang (dawn / day / dusk / night), incl. sterrenhemel
-  en maan 's nachts. Werkt zonder herladen, ook tussen twee databeurten in.
-- Weerpictogram en omschrijving wisselen 's nachts naar een nachtvariant
-  (bijv. "Onbewolkt" ☀️ wordt "Helder" 🌙) in plaats van een zon bij het
-  invallen van de duisternis.
-- Zonkaart onderin wisselt automatisch tussen "Zonsondergang" en
-  "Zonsopgang" (met tijd van morgen) zodra het nacht is geworden.
-- Windmetric heeft nu een roterend pijltje dat de actuele windrichting
-  visueel toont, naast de bestaande tekstwaarde.
-- Getijden-tegel heeft een kleine live sparkline (SVG) van de
-  waterstand rond het huidige moment, met een stip op "nu".
-  Basisdata en disclaimer blijven ongewijzigd (modelindicatie).
-- Eerstvolgende uur in de 6-uursverwachting krijgt een lichte
-  markering, zodat meteen duidelijk is welk blokje "nu" is.
-- prefers-reduced-motion wordt gerespecteerd: alle animaties pauzeren
-  voor bezoekers die minder beweging willen zien.
-- Belangrijkste tekstvelden (temperatuur, advies, strandposten,
-  verbindingsstatus) hebben aria-live, voor betere toegankelijkheid
-  op schermlezers.
-- Advies-tekst laat 's nachts geen UV-waarschuwing meer zien en geeft
-  een rustiger avondboodschap.
-
-Alle bestaande functionaliteit is behouden: live webcam, weer,
-zes-uursverwachting, beide reddingsposten via Strand App, golfhoogte,
-zeetemperatuur, golfrichting/-periode, luchtvochtigheid, lokale cache
-met back-off bij storingen, en de tv/laptop/mobiel-modi.
+NIEUW IN 3.2
+- Strandposten heten voortaan ▲ NOORD en ▼ ZUID.
+- Grote, direct herkenbare status: BEWAAKT, GEEN TOEZICHT of STATUS ONBEKEND.
+- De strandpostkaarten kleuren subtiel mee:
+  groen = bewaakt, grijs = geen toezicht, geel = waarschuwing,
+  rood = ernstig gevaar / niet zwemmen.
+- Groot veiligheidspictogram rechts in iedere kaart.
+- Actieve vlaginformatie wordt compacter en beter leesbaar getoond.
+- Op de TV wordt de webcam subtiel ingezoomd om zwarte zijbalken te beperken.
+- Alle functies van versie 3.1 blijven behouden:
+  dag/nacht-thema, animaties, live webcam, weer, getijden,
+  zeetemperatuur, reddingsbrigade, lokale cache en automatische retries.
 
 INSTALLEREN
-1. Overschrijf in de hoofdmap van de website:
+1. Pak de ZIP uit.
+2. Overschrijf in de hoofdmap van de website:
    - index.html
    - style.css
    - script.js
-2. Wacht tot de website opnieuw gepubliceerd is.
-3. Open de pagina met cacheversie 310 (query ?v=310 zit al in de bestanden).
+   - CNAME
+   - README.txt
+   - README.md
+3. Commit en push naar GitHub.
+4. Wacht tot GitHub Pages opnieuw gepubliceerd is.
 
-TV / FULLY KIOSK
-https://dashboard.cosmicobeach.nl/?mode=tv&v=310
+URL'S
+TV / FULLY KIOSK:
+https://dashboard.cosmicobeach.nl/?mode=tv&v=320
 
-LAPTOP
-https://dashboard.cosmicobeach.nl/?mode=laptop&v=310
+LAPTOP:
+https://dashboard.cosmicobeach.nl/?mode=laptop&v=320
 
-MOBIEL
-https://dashboard.cosmicobeach.nl/?mode=mobile&v=310
+MOBIEL:
+https://dashboard.cosmicobeach.nl/?mode=mobile&v=320
 
 BELANGRIJK
-- De getijden- en waterstandgegevens zijn een modelindicatie boven gemiddeld zeeniveau en niet bedoeld voor navigatie of zwemveiligheidsbeslissingen.
-- Officiële strandvlaggen en instructies van de reddingsbrigade blijven altijd leidend.
-- De webcam gebruikt de bestaande YouTube-livestream van Zandvoort Boulevard en strand.
-- Open-Meteo en Strand App gegevens worden lokaal gecachet als een bron tijdelijk uitvalt.
-- Strand App gebruikt time-out en oplopende back-off bij storingen of rate-limits.
+- Getijden en waterstanden zijn modelindicaties.
+- Officiële strandvlaggen en aanwijzingen van lifeguards blijven leidend.
+- De veiligheidskleur wordt afgeleid van de actuele Strand App-status en tekst.
 
 RELEASE
-Versie: 3.1.0
-Cacheversie: 310
-Datum: 4 augustus 2026
+Versie: 3.2.0
+Cacheversie: 320
+Datum: 6 augustus 2026
