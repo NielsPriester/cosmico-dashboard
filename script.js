@@ -1,6 +1,6 @@
 "use strict";
 
-/* COSMICO BEACH DASHBOARD 3.2 — versterkte strandveiligheid en tv-weergave */
+/* COSMICO BEACH DASHBOARD 3.2.2 — versterkte strandveiligheid en tv-weergave */
 const CONFIG = {
   timezone: "Europe/Amsterdam",
   weatherUrl:
@@ -40,7 +40,7 @@ const sky = { sunrise: null, sunset: null, sunriseNext: null, weatherCode: null,
 function setMode() {
   const requested = (new URLSearchParams(window.location.search).get("mode") || "").toLowerCase();
   let mode = requested;
-  if (!["tv", "laptop", "mobile", "web"].includes(mode)) {
+  if (!["tv", "laptop", "mobile", "web", "advice"].includes(mode)) {
     if (window.innerWidth <= 700) mode = "mobile";
     else if (window.innerWidth >= 1500 && window.innerHeight >= 800) mode = "tv";
     else mode = "laptop";
@@ -603,7 +603,9 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
   if (weatherData?.hourly) renderHourly(weatherData.hourly);
   renderRescuePosts(Array.isArray(posts) ? posts : []);
   updateWebGuardStatus(Array.isArray(posts) ? posts : []);
-  setText("beachAdvice", buildAdvice(current, marine, uv));
+  const advice = buildAdvice(current, marine, uv);
+  setText("beachAdvice", advice);
+  setText("webAdvice", advice);
   setConnection(!fromCache, fromCache ? "Laatste opgeslagen gegevens" : `Bijgewerkt ${formatClock(new Date())}`);
 }
 
@@ -656,7 +658,9 @@ async function loadDashboard() {
     if (cache) applyData(cache.weatherData, cache.marineData, cache.posts, true);
     else {
       setConnection(false, "Live gegevens niet beschikbaar");
-      setText("beachAdvice", "De live gegevens konden niet worden opgehaald. Volg de officiële informatie en aanwijzingen ter plaatse.");
+      const fallbackAdvice = "De live gegevens konden niet worden opgehaald. Volg de officiële informatie en aanwijzingen ter plaatse.";
+      setText("beachAdvice", fallbackAdvice);
+      setText("webAdvice", fallbackAdvice);
       renderRescuePosts([]);
       renderTide(null);
     }

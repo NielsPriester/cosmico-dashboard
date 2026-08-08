@@ -1,4 +1,4 @@
-COSMICO BEACH DASHBOARD 3.2.1 — WEBSITE-EMBED
+COSMICO BEACH DASHBOARD 3.2.2 — WEBSITE-EMBED
 ==========================================================
 
 NIEUW IN 3.2
@@ -27,7 +27,7 @@ INSTALLEREN
 4. Wacht tot GitHub Pages opnieuw gepubliceerd is.
 
 WEBSITE-EMBED:
-https://dashboard.cosmicobeach.nl/?mode=web&v=321
+https://dashboard.cosmicobeach.nl/?mode=web&v=322
 
 URL'S
 TV / FULLY KIOSK:
@@ -45,6 +45,10 @@ BELANGRIJK
 - De veiligheidskleur wordt afgeleid van de actuele Strand App-status en tekst.
 
 RELEASE
-Versie: 3.2.1
+Versie: 3.2.2
 Cacheversie: 321
 Datum: 8 augustus 2026
+
+
+Wix adviesblok:
+https://dashboard.cosmicobeach.nl/?mode=advice&v=322

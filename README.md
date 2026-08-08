@@ -1,4 +1,4 @@
-# Cosmico Beach Dashboard 3.2.1
+# Cosmico Beach Dashboard 3.2.2
 
 Versie 3.2 versterkt vooral de **officiële strandinformatie**.
 
@@ -18,7 +18,7 @@ Versie 3.2 versterkt vooral de **officiële strandinformatie**.
 
 ## Website-integratie
 
-- Compacte Wix-embed: `https://dashboard.cosmicobeach.nl/?mode=web&v=321`
+- Compacte Wix-embed: `https://dashboard.cosmicobeach.nl/?mode=web&v=322`
 - Deze modus toont alleen de actuele temperatuur, zeewater, wind, golven en bewakingsstatus.
 - Klikken op de kaart opent de volledige mobiele strandinformatie.
 
@@ -45,3 +45,7 @@ Commit en push daarna naar GitHub.
 
 Getijden- en waterstandgegevens zijn modelindicaties. De officiële
 strandvlaggen en instructies van de reddingsbrigade blijven altijd leidend.
+
+
+Wix adviesblok:
+https://dashboard.cosmicobeach.nl/?mode=advice&v=322

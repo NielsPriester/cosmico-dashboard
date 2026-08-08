@@ -588,3 +588,44 @@ html[data-mode="web"] .web-embed {
   .web-embed-link { height:auto; min-height:180px; grid-template-columns:1fr; }
   .web-main { justify-content:center; }
 }
+
+
+/* ---- Los live adviesblok voor Wix: ?mode=advice ---- */
+.advice-embed { display:none; }
+html[data-mode="advice"], html[data-mode="advice"] body {
+  width:100%; height:100%; min-height:0; overflow:hidden; background:transparent;
+}
+html[data-mode="advice"] body::after,
+html[data-mode="advice"] .ambient,
+html[data-mode="advice"] #app,
+html[data-mode="advice"] .web-embed { display:none !important; }
+html[data-mode="advice"] .advice-embed {
+  display:block; width:100%; height:100%; padding:0; margin:0; color:var(--cream);
+  font-family:Inter, Arial, Helvetica, sans-serif;
+}
+.advice-embed-link {
+  width:100%; height:100%; min-height:84px; padding:14px 18px; display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:14px;
+  color:inherit; text-decoration:none; border:1px solid rgba(255,255,255,.15); border-radius:18px;
+  background:linear-gradient(100deg,rgba(255,101,51,.30),rgba(45,24,18,.96));
+  box-shadow:0 12px 30px rgba(47,24,17,.30), inset 0 1px 0 rgba(255,255,255,.05); overflow:hidden;
+}
+.advice-embed-icon {
+  width:44px; height:44px; display:grid; place-items:center; flex:0 0 auto; border-radius:50%;
+  background:rgba(255,255,255,.10); color:var(--gold); font-size:19px;
+  animation:slow-spin 10s linear infinite; animation-play-state:var(--motion-play);
+}
+.advice-embed-copy { min-width:0; }
+.advice-embed-copy small {
+  display:block; color:var(--orange); font-size:10px; font-weight:900; letter-spacing:.14em;
+}
+.advice-embed-copy strong {
+  display:block; margin-top:5px; font-size:clamp(14px,1.15vw,20px); line-height:1.25;
+}
+.advice-embed-cta { color:var(--orange); font-size:13px; font-weight:900; white-space:nowrap; }
+.advice-embed-link:hover .advice-embed-cta { text-decoration:underline; }
+@media (max-width:760px) {
+  .advice-embed-link { min-height:108px; grid-template-columns:auto minmax(0,1fr); padding:13px 14px; }
+  .advice-embed-cta { display:none; }
+  .advice-embed-copy strong { font-size:14px; }
+}
