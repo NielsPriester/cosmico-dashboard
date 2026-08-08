@@ -1,0 +1,44 @@
+name: Deploy Cosmico Dashboard
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: cosmico-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Repository ophalen
+        uses: actions/checkout@v6
+
+      - name: GitHub Pages instellen
+        uses: actions/configure-pages@v5
+
+      - name: Websitebestanden uploaden
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: "."
+
+      - name: Website publiceren
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          timeout: 1200000
