@@ -40,7 +40,7 @@ const sky = { sunrise: null, sunset: null, sunriseNext: null, weatherCode: null,
 function setMode() {
   const requested = (new URLSearchParams(window.location.search).get("mode") || "").toLowerCase();
   let mode = requested;
-  if (!["tv", "laptop", "mobile"].includes(mode)) {
+  if (!["tv", "laptop", "mobile", "web"].includes(mode)) {
     if (window.innerWidth <= 700) mode = "mobile";
     else if (window.innerWidth >= 1500 && window.innerHeight >= 800) mode = "tv";
     else mode = "laptop";
@@ -130,6 +130,9 @@ function applyTheme() {
       setText("headerWeatherIcon", icon);
       setText("condition", description);
       setText("headerCondition", description);
+  setText("webWeatherIcon", icon);
+  setText("webTemperature", `${numberText(current.temperature_2m)}°`);
+  setText("webCondition", description);
     }
     updateSunCard();
   }
@@ -525,6 +528,31 @@ function loadCache() {
   try { return JSON.parse(localStorage.getItem(CONFIG.cacheKey) || "null")?.data || null; } catch (_) { return null; }
 }
 
+
+function updateWebGuardStatus(posts) {
+  const north = findPost(posts, ["zvt noord", "zandvoort noord", "noord"]);
+  const south = findPost(posts, ["zvt zuid", "zandvoort zuid", "zuid"]);
+  const available = [north, south].filter(Boolean);
+  const guarded = available.filter((post) => post.state_status === true).length;
+  const node = $("webGuardStatus");
+  if (!node) return;
+
+  node.classList.remove("is-guarded", "is-off", "is-unknown");
+  if (!available.length) {
+    node.textContent = "Status onbekend";
+    node.classList.add("is-unknown");
+  } else if (guarded === available.length) {
+    node.textContent = "Bewaakt";
+    node.classList.add("is-guarded");
+  } else if (guarded > 0) {
+    node.textContent = "Deels bewaakt";
+    node.classList.add("is-guarded");
+  } else {
+    node.textContent = "Geen toezicht";
+    node.classList.add("is-off");
+  }
+}
+
 function applyData(weatherData, marineData, posts, fromCache = false) {
   const current = weatherData?.current || {};
   const daily = weatherData?.daily || {};
@@ -547,8 +575,12 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
   setText("headerTemperature", `${numberText(current.temperature_2m)}°`);
   setText("condition", description);
   setText("headerCondition", description);
+  setText("webWeatherIcon", icon);
+  setText("webTemperature", `${numberText(current.temperature_2m)}°`);
+  setText("webCondition", description);
   setText("feelsLike", `${numberText(current.apparent_temperature)}°C`);
   setText("wind", `${numberText(current.wind_speed_10m)} km/u ${compassDirection(current.wind_direction_10m)}`);
+  setText("webWind", `${numberText(current.wind_speed_10m)} km/u ${compassDirection(current.wind_direction_10m)}`);
   setWindArrow(current.wind_direction_10m);
   setText("windGusts", `${numberText(current.wind_gusts_10m)} km/u`);
   setText("uvIndex", numberText(uv, 1));
@@ -561,13 +593,16 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
   setText("humidity", `${numberText(current.relative_humidity_2m)}%`);
 
   setText("waveHeight", `${numberText(marine.wave_height, 1)} m`);
+  setText("webWaveHeight", `${numberText(marine.wave_height, 1)} m`);
   setText("waveDirection", compassDirection(marine.wave_direction));
   setText("wavePeriod", `${numberText(marine.wave_period, 1)} sec`);
   setText("waterTemperature", `${numberText(nearestHourlyValue(marineHourly, "sea_surface_temperature"), 1)}°C`);
+  setText("webWaterTemperature", `${numberText(nearestHourlyValue(marineHourly, "sea_surface_temperature"), 1)}°C`);
   renderTide(marineHourly);
 
   if (weatherData?.hourly) renderHourly(weatherData.hourly);
   renderRescuePosts(Array.isArray(posts) ? posts : []);
+  updateWebGuardStatus(Array.isArray(posts) ? posts : []);
   setText("beachAdvice", buildAdvice(current, marine, uv));
   setConnection(!fromCache, fromCache ? "Laatste opgeslagen gegevens" : `Bijgewerkt ${formatClock(new Date())}`);
 }

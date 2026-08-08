@@ -1,4 +1,4 @@
-# Cosmico Beach Dashboard 3.2
+# Cosmico Beach Dashboard 3.2.1
 
 Versie 3.2 versterkt vooral de **officiële strandinformatie**.
 
@@ -15,6 +15,12 @@ Versie 3.2 versterkt vooral de **officiële strandinformatie**.
 - Compactere weergave van actieve vlaggen.
 - Subtiele TV-crop van de webcam om zwarte zijbalken te beperken.
 - Alle bestaande 3.1-functies blijven behouden.
+
+## Website-integratie
+
+- Compacte Wix-embed: `https://dashboard.cosmicobeach.nl/?mode=web&v=321`
+- Deze modus toont alleen de actuele temperatuur, zeewater, wind, golven en bewakingsstatus.
+- Klikken op de kaart opent de volledige mobiele strandinformatie.
 
 ## Modi
 

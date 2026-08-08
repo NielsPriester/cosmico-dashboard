@@ -1,4 +1,4 @@
-COSMICO BEACH DASHBOARD 3.2 — STRANDVEILIGHEID RELEASE
+COSMICO BEACH DASHBOARD 3.2.1 — WEBSITE-EMBED
 ==========================================================
 
 NIEUW IN 3.2
@@ -26,6 +26,9 @@ INSTALLEREN
 3. Commit en push naar GitHub.
 4. Wacht tot GitHub Pages opnieuw gepubliceerd is.
 
+WEBSITE-EMBED:
+https://dashboard.cosmicobeach.nl/?mode=web&v=321
+
 URL'S
 TV / FULLY KIOSK:
 https://dashboard.cosmicobeach.nl/?mode=tv&v=320
@@ -42,6 +45,6 @@ BELANGRIJK
 - De veiligheidskleur wordt afgeleid van de actuele Strand App-status en tekst.
 
 RELEASE
-Versie: 3.2.0
-Cacheversie: 320
-Datum: 6 augustus 2026
+Versie: 3.2.1
+Cacheversie: 321
+Datum: 8 augustus 2026
