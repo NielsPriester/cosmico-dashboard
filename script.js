@@ -61,11 +61,11 @@ function scheduleConditionFocus(delay = 3000) {
     item.classList.add("is-focus");
     conditionFocusIndex = (conditionFocusIndex + 1) % items.length;
 
-    // Twee seconden groot in beeld, daarna drie seconden rust voor het volgende item.
+    // Rustig inzoomen (ca. 1 sec), daarna circa twee seconden volledig groot; vervolgens rustig uitzoomen en drie seconden rust voor het volgende item.
     conditionFocusTimer = window.setTimeout(() => {
       item.classList.remove("is-focus");
       scheduleConditionFocus(3000);
-    }, 2000);
+    }, 3000);
   }, delay);
 }
 

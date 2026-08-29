@@ -729,10 +729,10 @@ html[data-mode="tv"] .condition-item {
   z-index: 1;
   transform: translateZ(0) scale(1);
   transform-origin: center center;
-  transition: transform .42s cubic-bezier(.22,.9,.24,1),
-              background .35s ease,
-              border-color .35s ease,
-              box-shadow .35s ease;
+  transition: transform 1.05s cubic-bezier(.22,.61,.36,1),
+              background .8s ease,
+              border-color .8s ease,
+              box-shadow .8s ease;
   will-change: transform;
 }
 
