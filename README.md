@@ -1,4 +1,4 @@
-# Cosmico Beach Dashboard 3.2.2
+# Cosmico Beach Dashboard 3.2.4
 
 Versie 3.2 versterkt vooral de **officiële strandinformatie**.
 

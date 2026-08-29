@@ -456,13 +456,18 @@ html[data-mode="laptop"] .card { border-radius:1vw; }
   color: var(--cream);
 }
 
-/* De bron is smaller dan 16:9. In TV-modus croppen we subtiel,
-   zodat de webcamkaart minder zwarte zijbalken toont. */
-html[data-mode="tv"] .media-frame iframe {
-  width: 112%;
-  height: 112%;
-  margin-left: -6%;
-  margin-top: -3%;
+/* Webcam desktop: laat de 16:9 livestream het kader echt vullen.
+   Het iframe blijft 16:9 en wordt verticaal gecropt door het brede dashboardkader,
+   zodat zwarte zijbalken zoveel mogelijk verdwijnen zonder het beeld te vervormen. */
+html[data-mode="tv"] .media-frame iframe,
+html[data-mode="laptop"] .media-frame iframe {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  transform: translateY(-50%);
 }
 
 html[data-mode="tv"] .rescue-post {

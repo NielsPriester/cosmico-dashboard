@@ -1,4 +1,4 @@
-COSMICO BEACH DASHBOARD 3.2.2 — WEBSITE-EMBED
+COSMICO BEACH DASHBOARD 3.2.4 — WEBSITE-EMBED
 ==========================================================
 
 NIEUW IN 3.2
@@ -45,7 +45,7 @@ BELANGRIJK
 - De veiligheidskleur wordt afgeleid van de actuele Strand App-status en tekst.
 
 RELEASE
-Versie: 3.2.2
+Versie: 3.2.4
 Cacheversie: 321
 Datum: 8 augustus 2026
 
