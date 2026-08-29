@@ -1,54 +1,15 @@
-COSMICO BEACH DASHBOARD 3.2.4 — WEBSITE-EMBED
-==========================================================
+# Cosmico Beach Dashboard 3.3.1
 
-NIEUW IN 3.2
-- Strandposten heten voortaan ▲ NOORD en ▼ ZUID.
-- Grote, direct herkenbare status: BEWAAKT, GEEN TOEZICHT of STATUS ONBEKEND.
-- De strandpostkaarten kleuren subtiel mee:
-  groen = bewaakt, grijs = geen toezicht, geel = waarschuwing,
-  rood = ernstig gevaar / niet zwemmen.
-- Groot veiligheidspictogram rechts in iedere kaart.
-- Actieve vlaginformatie wordt compacter en beter leesbaar getoond.
-- Op de TV wordt de webcam subtiel ingezoomd om zwarte zijbalken te beperken.
-- Alle functies van versie 3.1 blijven behouden:
-  dag/nacht-thema, animaties, live webcam, weer, getijden,
-  zeetemperatuur, reddingsbrigade, lokale cache en automatische retries.
+## Nieuw
+- Reddingsbrigade-blok met herkenbaar oranje accent; rood/groen blijft exclusief voor veiligheidsstatus.
+- Lifeguard-status: 🛟 LIFEGUARD ON DUTY / ❌ NO LIFEGUARD.
+- Webcam vult TV/kiosk en desktop/laptop zoveel mogelijk zonder vervorming.
+- Uurverwachting groter en beter leesbaar op afstand.
+- Slimme uurregel: bij minder dan 10% regenkans geen regenmelding.
+- Vanaf 10% verschijnt 🌧️ met het actuele regenpercentage.
+- Zon én regenkans worden gecombineerd, bijvoorbeeld: ☀️ 25 MIN · 🌧️ 30% REGEN.
+- Minuten zon per uur komen uit Open-Meteo `sunshine_duration`.
+- Onderste adviesbalk bevat dynamische Cosmico-weer-oneliners met een knipoog.
+- Oneliner extra prominent op mobiel en in het losse Wix-adviesblok.
 
-INSTALLEREN
-1. Pak de ZIP uit.
-2. Overschrijf in de hoofdmap van de website:
-   - index.html
-   - style.css
-   - script.js
-   - CNAME
-   - README.txt
-   - README.md
-3. Commit en push naar GitHub.
-4. Wacht tot GitHub Pages opnieuw gepubliceerd is.
-
-WEBSITE-EMBED:
-https://dashboard.cosmicobeach.nl/?mode=web&v=322
-
-URL'S
-TV / FULLY KIOSK:
-https://dashboard.cosmicobeach.nl/?mode=tv&v=320
-
-LAPTOP:
-https://dashboard.cosmicobeach.nl/?mode=laptop&v=320
-
-MOBIEL:
-https://dashboard.cosmicobeach.nl/?mode=mobile&v=320
-
-BELANGRIJK
-- Getijden en waterstanden zijn modelindicaties.
-- Officiële strandvlaggen en aanwijzingen van lifeguards blijven leidend.
-- De veiligheidskleur wordt afgeleid van de actuele Strand App-status en tekst.
-
-RELEASE
-Versie: 3.2.4
-Cacheversie: 321
-Datum: 8 augustus 2026
-
-
-Wix adviesblok:
-https://dashboard.cosmicobeach.nl/?mode=advice&v=322
+Cacheversie: 331

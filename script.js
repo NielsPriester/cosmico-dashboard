@@ -8,7 +8,7 @@ const CONFIG = {
     "?latitude=52.3765&longitude=4.5330" +
     "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code," +
     "wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,visibility" +
-    "&hourly=temperature_2m,weather_code,precipitation_probability" +
+    "&hourly=temperature_2m,weather_code,precipitation_probability,sunshine_duration" +
     "&daily=temperature_2m_max,uv_index_max,sunrise,sunset" +
     "&timezone=Europe%2FAmsterdam&forecast_days=2&wind_speed_unit=kmh",
   marineUrl:
@@ -227,7 +227,14 @@ function renderHourly(hourly) {
   for (let i = start; i < Math.min(start + 6, hourly.time.length); i += 1) {
     const [, icon] = weatherInfo(hourly.weather_code?.[i], sky.isNight && i === start);
     const nowClass = i === start ? " is-now" : "";
-    cards.push(`<div class="hour${nowClass}"><span class="time">${formatClock(new Date(hourly.time[i]))}</span><span class="icon">${icon}</span><strong class="degrees">${numberText(hourly.temperature_2m?.[i])}°</strong><span class="rain">💧 ${numberText(hourly.precipitation_probability?.[i])}%</span></div>`);
+    const sunshineMinutes = Math.max(0, Math.min(60, Math.round(Number(hourly.sunshine_duration?.[i] || 0) / 60)));
+    const rainChance = Math.max(0, Math.min(100, Math.round(Number(hourly.precipitation_probability?.[i] || 0))));
+    const sunshinePart = sunshineMinutes > 0 ? `☀️ <strong>${sunshineMinutes}</strong> MIN` : "";
+    const rainPart = rainChance >= 10 ? `🌧️ <strong>${rainChance}%</strong> REGEN` : "";
+    const detailText = sunshinePart && rainPart
+      ? `${sunshinePart}<span class="weather-detail-separator"> · </span>${rainPart}`
+      : (rainPart || sunshinePart || `☀️ <strong>0</strong> MIN ZON`);
+    cards.push(`<div class="hour${nowClass}"><span class="time">${formatClock(new Date(hourly.time[i]))}</span><span class="icon">${icon}</span><strong class="degrees">${numberText(hourly.temperature_2m?.[i])}°</strong><span class="sunshine weather-detail">${detailText}</span></div>`);
   }
   container.innerHTML = cards.join("");
 }
@@ -495,25 +502,50 @@ function buildAdvice(weather, marine, uv) {
   const temperature = Number(weather.temperature_2m);
   const wind = Number(weather.wind_speed_10m);
   const gusts = Number(weather.wind_gusts_10m);
-  const wave = Number(marine.wave_height);
-  const uvIndex = Number(uv);
   const code = Number(weather.weather_code);
-  const parts = [];
-  if (code >= 95) parts.push("Bij onweer direct het strand en het water verlaten.");
-  else if ([61,63,65,80,81,82].includes(code)) parts.push("Houd rekening met regen of buien.");
-  else if (sky.isNight) parts.push("Rustig aan het strand vanavond.");
-  else if (temperature >= 22) parts.push("Heerlijk strandweer.");
-  else if (temperature < 16) parts.push("Het is fris aan zee.");
-  else parts.push("Prima weer voor een bezoek aan het strand.");
-  if (wind >= 40 || gusts >= 55) parts.push("Veel wind: zet losse spullen goed vast.");
-  else if (wind >= 25) parts.push("Er staat een stevige zeewind.");
-  if (wave >= 1.5) parts.push("Stevige golven: wees extra voorzichtig in zee.");
-  else if (wave >= .8) parts.push("Houd rekening met merkbare golfslag.");
-  if (!sky.isNight && uvIndex >= 6) parts.push("UV is hoog, dus goed en regelmatig insmeren.");
-  else if (!sky.isNight && uvIndex >= 3) parts.push("Bescherm je huid tegen de zon.");
-  return parts.slice(0, 3).concat("De officiële vlaggen en aanwijzingen zijn altijd leidend.").join(" ");
-}
+  const hour = new Date().getHours();
+  let lines;
 
+  if (code >= 95) lines = [
+    "Onweer boven zee. Vandaag wint binnen van buiten.",
+    "Bliksem is prachtig op afstand. Wij houden het liever gezellig binnen."
+  ];
+  else if ([61,63,65,80,81,82].includes(code)) lines = [
+    "Een beetje regen heeft nog nooit een goede lunch verpest.",
+    "Nat buiten. Droog glas? Dat kunnen we oplossen.",
+    "Buien aan zee. Gelukkig smaakt Italië ook onder een dak."
+  ];
+  else if (wind >= 35 || gusts >= 50) lines = [
+    "Wind in je haar. Aperol in je hand.",
+    "Stevige zeewind. Perfect excuus om nog even te blijven zitten."
+  ];
+  else if (sky.isNight || hour >= 20) lines = [
+    "De zon is klaar voor vandaag. Wij nog niet.",
+    "Avond aan zee. Geen haast, wel een goed glas."
+  ];
+  else if (temperature >= 23) lines = [
+    "Zon aan. Telefoon uit. Aperol koud.",
+    "Strandweer met hoofdletters. SPF niet vergeten.",
+    "Dit is waarom we aan zee zitten."
+  ];
+  else if (temperature < 16) lines = [
+    "Fris aan zee. Gelukkig staat de koffie warm.",
+    "Trui aan, uitzicht aan. Prima deal."
+  ];
+  else if ([0,1,2].includes(code)) lines = [
+    "Genoeg zon voor het terras. De rest regelen wij.",
+    "Golven aan. Vakantiemodus aan.",
+    "Zeezicht inbegrepen. Goed humeur sterk aanbevolen."
+  ];
+  else lines = [
+    "De zon doet rustig aan. Wij niet.",
+    "Geen perfect strandweer nodig voor een perfecte stranddag.",
+    "Zand onder je voeten. Italië op tafel."
+  ];
+
+  const slot = Math.floor(Date.now() / (60 * 60 * 1000));
+  return lines[Math.abs(slot) % lines.length];
+}
 function setConnection(online, text) {
   const wrapper = $("connectionState");
   if (wrapper) wrapper.classList.toggle("online", online);
