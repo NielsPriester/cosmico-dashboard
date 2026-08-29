@@ -1,4 +1,4 @@
-# Cosmico Beach Dashboard 3.3.1
+# Cosmico Beach Dashboard 3.3.2
 
 ## Nieuw
 - Reddingsbrigade-blok met herkenbaar oranje accent; rood/groen blijft exclusief voor veiligheidsstatus.
@@ -12,4 +12,6 @@
 - Onderste adviesbalk bevat dynamische Cosmico-weer-oneliners met een knipoog.
 - Oneliner extra prominent op mobiel en in het losse Wix-adviesblok.
 
-Cacheversie: 331
+Cacheversie: 332
+
+- 3.3.2: officieel Reddingsbrigade-oranje (#ff5a00) duidelijker zichtbaar; layout ongewijzigd.
