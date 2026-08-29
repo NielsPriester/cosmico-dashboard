@@ -762,3 +762,63 @@ html[data-mode="tv"] .condition-item.is-focus .tide-detail {
 @media (prefers-reduced-motion: reduce) {
   html[data-mode="tv"] .condition-item { transition: none; }
 }
+
+
+/* ===== 3.3.5 — TV/KIOSK: COSMICO BEACH langzaam door de header =====
+   Alleen de grote merknaam beweegt. Weer-pill en klok liggen erboven,
+   zodat de merknaam er visueel achterlangs schuift. */
+html[data-mode="tv"] .topbar {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+html[data-mode="tv"] .brand-block {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  z-index: 1;
+  width: max-content;
+  transform: translate3d(0,-50%,0);
+  pointer-events: none;
+  will-change: transform;
+  animation: cosmico-brand-drift 42s ease-in-out infinite alternate;
+  animation-play-state: var(--motion-play);
+}
+
+html[data-mode="tv"] .brand-block .eyebrow {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + .35vh);
+  white-space: nowrap;
+}
+
+html[data-mode="tv"] .brand-block h1 {
+  margin: 0;
+  white-space: nowrap;
+}
+
+html[data-mode="tv"] .topbar-summary,
+html[data-mode="tv"] .clock {
+  position: relative;
+  z-index: 5;
+}
+
+html[data-mode="tv"] .topbar-summary {
+  grid-column: 2;
+  justify-self: center;
+}
+
+html[data-mode="tv"] .clock {
+  grid-column: 3;
+  justify-self: end;
+}
+
+@keyframes cosmico-brand-drift {
+  from { transform: translate3d(0,-50%,0); }
+  to   { transform: translate3d(calc(100vw - 39vw),-50%,0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-mode="tv"] .brand-block { animation: none; }
+}
