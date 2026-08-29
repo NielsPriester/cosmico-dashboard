@@ -351,7 +351,7 @@ function rescueIcon(severity, active) {
   if (severity === "danger") return "⛔";
   if (severity === "warning") return "⚠";
   if (active) return "🛟";
-  return "◼";
+  return "❌";
 }
 
 function compactFlagText(post) {
@@ -440,15 +440,15 @@ function renderRescuePost(post, label) {
       ? "Lifeguards houden toezicht."
       : "Geen toezicht. Zwemmen op eigen risico.");
 
-  const statusText = active ? "BEWAAKT" : "GEEN TOEZICHT";
+  const statusText = active ? "LIFEGUARD ON DUTY" : "❌ NO LIFEGUARD";
   const symbolText =
     severity === "danger"
       ? "NIET ZWEMMEN"
       : severity === "warning"
         ? "WAARSCHUWING"
         : active
-          ? "LIFEGUARD"
-          : "EIGEN RISICO";
+          ? "ON DUTY"
+          : "NO LIFEGUARD";
 
   return `
     <article class="rescue-post safety-${severity}">
@@ -542,13 +542,13 @@ function updateWebGuardStatus(posts) {
     node.textContent = "Status onbekend";
     node.classList.add("is-unknown");
   } else if (guarded === available.length) {
-    node.textContent = "Bewaakt";
+    node.textContent = "🛟 Lifeguard on duty";
     node.classList.add("is-guarded");
   } else if (guarded > 0) {
-    node.textContent = "Deels bewaakt";
+    node.textContent = "⚠️ Limited lifeguard coverage";
     node.classList.add("is-guarded");
   } else {
-    node.textContent = "Geen toezicht";
+    node.textContent = "❌ No lifeguard";
     node.classList.add("is-off");
   }
 }
