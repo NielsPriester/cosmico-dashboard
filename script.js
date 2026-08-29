@@ -32,10 +32,53 @@ const $ = (id) => document.getElementById(id);
 let refreshTimer = null;
 let beachFailureCount = 0;
 let beachNextAttemptAt = 0;
+let conditionFocusTimer = null;
+let conditionFocusIndex = 0;
 
 /* Houdt de meest recente zon- en weerinfo bij zodat het dag/nacht-thema
    ook tussen twee databeurten door kan bijwerken (elke klok-tick). */
 const sky = { sunrise: null, sunset: null, sunriseNext: null, weatherCode: null, theme: null, isNight: false };
+
+function stopConditionFocus() {
+  window.clearTimeout(conditionFocusTimer);
+  conditionFocusTimer = null;
+  document.querySelectorAll(".conditions-strip .condition-item.is-focus").forEach((item) => item.classList.remove("is-focus"));
+}
+
+function scheduleConditionFocus(delay = 3000) {
+  window.clearTimeout(conditionFocusTimer);
+  conditionFocusTimer = window.setTimeout(() => {
+    if (document.documentElement.dataset.mode !== "tv") {
+      stopConditionFocus();
+      return;
+    }
+
+    const items = Array.from(document.querySelectorAll(".conditions-strip .condition-item"));
+    if (!items.length) return;
+
+    items.forEach((item) => item.classList.remove("is-focus"));
+    const item = items[conditionFocusIndex % items.length];
+    item.classList.add("is-focus");
+    conditionFocusIndex = (conditionFocusIndex + 1) % items.length;
+
+    // Twee seconden groot in beeld, daarna drie seconden rust voor het volgende item.
+    conditionFocusTimer = window.setTimeout(() => {
+      item.classList.remove("is-focus");
+      scheduleConditionFocus(3000);
+    }, 2000);
+  }, delay);
+}
+
+function syncConditionFocus() {
+  if (document.documentElement.dataset.mode === "tv") {
+    if (!conditionFocusTimer && !document.querySelector(".conditions-strip .condition-item.is-focus")) {
+      scheduleConditionFocus(3000);
+    }
+  } else {
+    stopConditionFocus();
+    conditionFocusIndex = 0;
+  }
+}
 
 function setMode() {
   const requested = (new URLSearchParams(window.location.search).get("mode") || "").toLowerCase();
@@ -47,6 +90,7 @@ function setMode() {
   }
   document.documentElement.dataset.mode = mode;
   setText("modeName", mode.toUpperCase());
+  syncConditionFocus();
 }
 
 function setText(id, value, fallback = "—") {
