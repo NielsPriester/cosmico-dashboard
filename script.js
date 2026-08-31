@@ -1,14 +1,22 @@
 "use strict";
 
-/* COSMICO BEACH DASHBOARD 3.2.2 — versterkte strandveiligheid en tv-weergave */
+/* COSMICO BEACH DASHBOARD 3.4.0 — visuele KNMI-uurverwachting + compacte strandveiligheid */
 const CONFIG = {
   timezone: "Europe/Amsterdam",
   weatherUrl:
     "https://api.open-meteo.com/v1/forecast" +
     "?latitude=52.3765&longitude=4.5330" +
     "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code," +
-    "wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,visibility" +
-    "&hourly=temperature_2m,weather_code,precipitation_probability,sunshine_duration" +
+    "wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,visibility,cloud_cover,is_day" +
+    "&hourly=temperature_2m,weather_code,precipitation_probability,precipitation,sunshine_duration,cloud_cover,is_day" +
+    "&daily=temperature_2m_max,uv_index_max,sunrise,sunset" +
+    "&timezone=Europe%2FAmsterdam&forecast_days=2&wind_speed_unit=kmh&models=knmi_seamless",
+  weatherFallbackUrl:
+    "https://api.open-meteo.com/v1/forecast" +
+    "?latitude=52.3765&longitude=4.5330" +
+    "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code," +
+    "wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,visibility,cloud_cover,is_day" +
+    "&hourly=temperature_2m,weather_code,precipitation_probability,precipitation,sunshine_duration,cloud_cover,is_day" +
     "&daily=temperature_2m_max,uv_index_max,sunrise,sunset" +
     "&timezone=Europe%2FAmsterdam&forecast_days=2&wind_speed_unit=kmh",
   marineUrl:
@@ -23,7 +31,7 @@ const CONFIG = {
   retryMs: 60 * 1000,
   requestTimeoutMs: 12 * 1000,
   hardReloadMs: 6 * 60 * 60 * 1000,
-  cacheKey: "cosmico-dashboard-320-cache",
+  cacheKey: "cosmico-dashboard-340-cache",
   dawnDuskWindowMs: 45 * 60 * 1000
 };
 
@@ -34,6 +42,7 @@ let beachFailureCount = 0;
 let beachNextAttemptAt = 0;
 let conditionFocusTimer = null;
 let conditionFocusIndex = 0;
+let forecastRange = null;
 
 /* Houdt de meest recente zon- en weerinfo bij zodat het dag/nacht-thema
    ook tussen twee databeurten door kan bijwerken (elke klok-tick). */
@@ -174,9 +183,8 @@ function applyTheme() {
       setText("headerWeatherIcon", icon);
       setText("condition", description);
       setText("headerCondition", description);
-  setText("webWeatherIcon", icon);
-  setText("webTemperature", `${numberText(current.temperature_2m)}°`);
-  setText("webCondition", description);
+      setText("webWeatherIcon", icon);
+      setText("webCondition", description);
     }
     updateSunCard();
   }
@@ -199,6 +207,7 @@ function updateClock() {
   setText("clockTime", formatClock(now));
   setText("clockDate", now.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" }));
   applyTheme();
+  updateForecastNowMarker();
 }
 
 function compassDirection(degrees) {
@@ -261,26 +270,118 @@ function nearestHourlyValue(hourly, field) {
   return index >= 0 && Array.isArray(hourly?.[field]) ? hourly[field][index] : null;
 }
 
+function forecastIsNight(hourly, index) {
+  if (Array.isArray(hourly?.is_day) && hourly.is_day[index] !== undefined) {
+    return Number(hourly.is_day[index]) === 0;
+  }
+  const date = new Date(hourly?.time?.[index]);
+  if (Number.isNaN(date.getTime())) return sky.isNight;
+  const hour = date.getHours();
+  return hour < 7 || hour >= 21;
+}
+
+function forecastSkyColor(code, isNight, cloudCover = 50, timeValue = null) {
+  const c = Number(code);
+  const cloud = Number.isFinite(Number(cloudCover)) ? Number(cloudCover) : 50;
+  const time = timeValue ? new Date(timeValue) : null;
+  const sunset = sky.sunset ? new Date(sky.sunset) : null;
+  const nearSunset = time && sunset && Math.abs(time.getTime() - sunset.getTime()) <= 75 * 60 * 1000;
+
+  if (isNight) {
+    if ([61,63,65,80,81,82,95,96,99].includes(c)) return "#263340";
+    if (cloud >= 75) return "#263543";
+    return "#102c48";
+  }
+  if ([95,96,99].includes(c)) return "#525967";
+  if ([61,63,65,80,81,82,51,53,55].includes(c)) return "#667983";
+  if (nearSunset) return "#c97758";
+  if (cloud >= 88 || c === 3) return "#7b8790";
+  if (cloud >= 60 || c === 2) return "#739bad";
+  if (cloud >= 30 || c === 1) return "#55a0c7";
+  return "#2398d8";
+}
+
+function forecastBackground(hourly, indices) {
+  const stops = [];
+  indices.forEach((i, pos) => {
+    const color = forecastSkyColor(
+      hourly.weather_code?.[i],
+      forecastIsNight(hourly, i),
+      hourly.cloud_cover?.[i],
+      hourly.time?.[i]
+    );
+    const start = (pos / indices.length) * 100;
+    const end = ((pos + 1) / indices.length) * 100;
+    stops.push(`${color} ${start.toFixed(2)}%`, `${color} ${end.toFixed(2)}%`);
+  });
+  return `linear-gradient(90deg, ${stops.join(",")})`;
+}
+
+function updateForecastNowMarker() {
+  const marker = $("forecastNowMarker");
+  if (!marker || !forecastRange) return;
+  const now = Date.now();
+  const elapsedHours = (now - forecastRange.startMs) / 3600000;
+  const centerOffset = 0.5;
+  const position = ((elapsedHours + centerOffset) / forecastRange.count) * 100;
+  marker.style.left = `${Math.max(1.5, Math.min(98.5, position)).toFixed(2)}%`;
+}
+
+function forecastDetailMarkup(sunshineMinutes, rainChance, precipitation) {
+  const parts = [];
+  if (sunshineMinutes > 0) parts.push(`<span class="forecast-detail sun">☀ <b>${sunshineMinutes}</b>m</span>`);
+  if (rainChance >= 10) {
+    const amount = Number(precipitation);
+    const suffix = Number.isFinite(amount) && amount >= 0.2 ? ` · ${amount.toFixed(1)}mm` : "";
+    parts.push(`<span class="forecast-detail rain">🌧 <b>${rainChance}%</b>${suffix}</span>`);
+  }
+  if (!parts.length) parts.push(`<span class="forecast-detail dry">DROOG</span>`);
+  return parts.join("");
+}
+
 function renderHourly(hourly) {
   const container = $("hourlyForecast");
   if (!container || !Array.isArray(hourly?.time)) return;
+
   const now = new Date();
-  let start = hourly.time.findIndex((value) => new Date(value) >= now);
+  const startHour = new Date(now);
+  startHour.setMinutes(0, 0, 0);
+  let start = hourly.time.findIndex((value) => new Date(value) >= startHour);
   if (start < 0) start = 0;
-  const cards = [];
-  for (let i = start; i < Math.min(start + 6, hourly.time.length); i += 1) {
-    const [, icon] = weatherInfo(hourly.weather_code?.[i], sky.isNight && i === start);
-    const nowClass = i === start ? " is-now" : "";
+
+  const indices = [];
+  for (let i = start; i < Math.min(start + 8, hourly.time.length); i += 1) indices.push(i);
+  if (!indices.length) return;
+
+  const cards = indices.map((i, pos) => {
+    const isNight = forecastIsNight(hourly, i);
+    const [, icon] = weatherInfo(hourly.weather_code?.[i], isNight);
     const sunshineMinutes = Math.max(0, Math.min(60, Math.round(Number(hourly.sunshine_duration?.[i] || 0) / 60)));
     const rainChance = Math.max(0, Math.min(100, Math.round(Number(hourly.precipitation_probability?.[i] || 0))));
-    const sunshinePart = sunshineMinutes > 0 ? `☀️ <strong>${sunshineMinutes}</strong> MIN` : "";
-    const rainPart = rainChance >= 10 ? `🌧️ <strong>${rainChance}%</strong> REGEN` : "";
-    const detailText = sunshinePart && rainPart
-      ? `${sunshinePart}<span class="weather-detail-separator"> · </span>${rainPart}`
-      : (rainPart || sunshinePart || `☀️ <strong>0</strong> MIN ZON`);
-    cards.push(`<div class="hour${nowClass}"><span class="time">${formatClock(new Date(hourly.time[i]))}</span><span class="icon">${icon}</span><strong class="degrees">${numberText(hourly.temperature_2m?.[i])}°</strong><span class="sunshine weather-detail">${detailText}</span></div>`);
-  }
-  container.innerHTML = cards.join("");
+    const detail = forecastDetailMarkup(sunshineMinutes, rainChance, hourly.precipitation?.[i]);
+    const cloud = Math.max(0, Math.min(100, Math.round(Number(hourly.cloud_cover?.[i] || 0))));
+    const nowClass = pos === 0 ? " is-current-hour" : "";
+
+    return `<div class="hour${nowClass}" data-cloud="${cloud}">
+      <span class="time">${formatClock(new Date(hourly.time[i]))}</span>
+      <span class="icon">${icon}</span>
+      <strong class="degrees">${numberText(hourly.temperature_2m?.[i])}°</strong>
+      <span class="forecast-details">${detail}</span>
+    </div>`;
+  });
+
+  container.style.setProperty("--forecast-sky", forecastBackground(hourly, indices));
+  container.innerHTML = `
+    <div class="forecast-timeline" aria-hidden="true"></div>
+    <div id="forecastNowMarker" class="forecast-now-marker" aria-hidden="true"><span>NU</span></div>
+    ${cards.join("")}
+  `;
+
+  forecastRange = {
+    startMs: new Date(hourly.time[indices[0]]).getTime(),
+    count: indices.length
+  };
+  updateForecastNowMarker();
 }
 
 function renderTideSpark(times, levels, windowStart, windowEnd, nowIndex) {
@@ -423,10 +524,7 @@ function renderFlag(post, severity) {
     return `
       <div class="safety-message safety-message-clear">
         <span class="safety-mini-icon">✓</span>
-        <div>
-          <strong>Geen actieve waarschuwing</strong>
-          <span>Controleer altijd de vlaggen ter plaatse.</span>
-        </div>
+        <div><strong>Geen actieve waarschuwing</strong></div>
       </div>
     `;
   }
@@ -453,30 +551,16 @@ function renderFlag(post, severity) {
 function renderRescuePost(post, label) {
   if (!post) {
     return `
-      <article class="rescue-post safety-unknown">
+      <article class="rescue-post safety-unknown compact-rescue-post">
         <div class="rescue-copy">
           <div class="rescue-post-top">
             <h3>${escapeHtml(label)}</h3>
-            <div class="lifeguard-status status-unknown">
-              <span class="status-light"></span>
-              STATUS ONBEKEND
-            </div>
+            <div class="lifeguard-status status-unknown"><span class="status-light"></span> STATUS ONBEKEND</div>
           </div>
-
-          <p class="rescue-state">De actuele status kon niet worden opgehaald.</p>
-
           <div class="safety-message safety-message-clear">
             <span class="safety-mini-icon">?</span>
-            <div>
-              <strong>Controleer ter plaatse</strong>
-              <span>Volg de actuele vlaggen en aanwijzingen.</span>
-            </div>
+            <div><strong>Controleer ter plaatse</strong></div>
           </div>
-        </div>
-
-        <div class="rescue-symbol" aria-hidden="true">
-          <span>?</span>
-          <strong>ONBEKEND</strong>
         </div>
       </article>
     `;
@@ -484,43 +568,25 @@ function renderRescuePost(post, label) {
 
   const active = post.state_status === true;
   const severity = rescueSeverity(post, active);
-  const stateText =
-    post.state_text ||
-    post.state ||
-    (active
-      ? "Lifeguards houden toezicht."
-      : "Geen toezicht. Zwemmen op eigen risico.");
-
   const statusText = active ? "LIFEGUARD ON DUTY" : "❌ NO LIFEGUARD";
-  const symbolText =
-    severity === "danger"
-      ? "NIET ZWEMMEN"
-      : severity === "warning"
-        ? "WAARSCHUWING"
-        : active
-          ? "ON DUTY"
-          : "NO LIFEGUARD";
+  const alertSymbol = severity === "danger"
+    ? `<div class="rescue-alert-symbol"><span>⛔</span><strong>NIET ZWEMMEN</strong></div>`
+    : severity === "warning"
+      ? `<div class="rescue-alert-symbol"><span>⚠</span><strong>WAARSCHUWING</strong></div>`
+      : "";
 
   return `
-    <article class="rescue-post safety-${severity}">
+    <article class="rescue-post safety-${severity} compact-rescue-post${alertSymbol ? " has-alert" : ""}">
       <div class="rescue-copy">
         <div class="rescue-post-top">
           <h3>${escapeHtml(label)}</h3>
-
           <div class="lifeguard-status status-${active ? "guarded" : "off"}">
-            <span class="status-light ${active ? "on" : "off"}"></span>
-            ${statusText}
+            <span class="status-light ${active ? "on" : "off"}"></span>${statusText}
           </div>
         </div>
-
-        <p class="rescue-state">${escapeHtml(stateText)}</p>
         ${renderFlag(post, severity)}
       </div>
-
-      <div class="rescue-symbol" aria-hidden="true">
-        <span>${rescueIcon(severity, active)}</span>
-        <strong>${symbolText}</strong>
-      </div>
+      ${alertSymbol}
     </article>
   `;
 }
@@ -635,6 +701,7 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
   const marine = marineData?.current || {};
   const marineHourly = marineData?.hourly || {};
   const uv = daily.uv_index_max?.[0];
+  setText("forecastSource", `${weatherData?._cosmicoSource === "BEST MATCH" ? "WEERMODEL" : "KNMI"} · 8 UUR`);
 
   sky.sunrise = daily.sunrise?.[0] || sky.sunrise;
   sky.sunset = daily.sunset?.[0] || sky.sunset;
@@ -685,6 +752,18 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
   setConnection(!fromCache, fromCache ? "Laatste opgeslagen gegevens" : `Bijgewerkt ${formatClock(new Date())}`);
 }
 
+async function loadWeatherData() {
+  try {
+    const data = await fetchJson(CONFIG.weatherUrl);
+    data._cosmicoSource = "KNMI";
+    return data;
+  } catch (primaryError) {
+    const fallback = await fetchJson(CONFIG.weatherFallbackUrl);
+    fallback._cosmicoSource = "BEST MATCH";
+    return fallback;
+  }
+}
+
 async function loadBeachPosts() {
   if (Date.now() < beachNextAttemptAt) {
     const error = new Error("Strand App tijdelijk overgeslagen tijdens back-off");
@@ -713,7 +792,7 @@ function scheduleLoad(delay) {
 
 async function loadDashboard() {
   setConnection(false, "Gegevens laden…");
-  const results = await Promise.allSettled([fetchJson(CONFIG.weatherUrl), fetchJson(CONFIG.marineUrl), loadBeachPosts()]);
+  const results = await Promise.allSettled([loadWeatherData(), fetchJson(CONFIG.marineUrl), loadBeachPosts()]);
   const weatherData = results[0].status === "fulfilled" ? results[0].value : null;
   const marineData = results[1].status === "fulfilled" ? results[1].value : null;
   const posts = results[2].status === "fulfilled" ? results[2].value : null;

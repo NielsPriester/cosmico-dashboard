@@ -822,3 +822,268 @@ html[data-mode="tv"] .clock {
 @media (prefers-reduced-motion: reduce) {
   html[data-mode="tv"] .brand-block { animation: none; }
 }
+
+
+/* ===== 3.4.0 — brede visuele KNMI-tijdlijn + compacte Reddingsbrigade ===== */
+
+/* Toprij blijft ongeveer 46/54; forecast krijgt ~69% en Reddingsbrigade ~31%. */
+.dashboard {
+  grid-template-columns: repeat(13, minmax(0, 1fr));
+  grid-template-areas:
+    "current current current current current current media media media media media media media"
+    "forecast forecast forecast forecast forecast forecast forecast forecast forecast rescue rescue rescue rescue"
+    "conditions conditions conditions conditions conditions conditions conditions conditions conditions conditions conditions conditions conditions"
+    "advice advice advice advice advice advice advice advice advice advice advice advice advice";
+}
+
+/* ---- Forecast: één rustige doorlopende tijdlijn ---- */
+.forecast-card {
+  position: relative;
+  overflow: hidden;
+  padding: 1.2vh 1vw .9vh;
+}
+
+.forecast-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1vw;
+}
+
+.forecast-source {
+  color: rgba(255,243,233,.72);
+  font-size: clamp(8px,.5vw,11px);
+  font-weight: 850;
+  letter-spacing: .1em;
+  white-space: nowrap;
+}
+
+.hourly-forecast {
+  --forecast-sky: linear-gradient(90deg,#647985,#328fbe);
+  position: relative;
+  isolation: isolate;
+  height: calc(100% - 1.8vh);
+  margin-top: .55vh;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0,1fr));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: .82vw;
+  background:
+    linear-gradient(180deg,rgba(12,18,25,.08) 0%,rgba(28,17,13,.18) 50%,rgba(31,17,13,.76) 100%),
+    var(--forecast-sky);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.hourly-forecast::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .36;
+  background:
+    radial-gradient(ellipse at 12% 35%, rgba(255,255,255,.22) 0 7%, transparent 18%),
+    radial-gradient(ellipse at 43% 28%, rgba(255,255,255,.18) 0 8%, transparent 20%),
+    radial-gradient(ellipse at 76% 42%, rgba(255,255,255,.15) 0 7%, transparent 18%);
+}
+
+.forecast-timeline {
+  position: absolute;
+  z-index: 5;
+  left: 1.2%;
+  right: 1.2%;
+  top: 2.35vh;
+  height: 1px;
+  background: rgba(255,255,255,.55);
+  box-shadow: 0 1px 0 rgba(0,0,0,.16);
+}
+
+.forecast-now-marker {
+  position: absolute;
+  z-index: 12;
+  top: .25vh;
+  bottom: .35vh;
+  left: 6.25%;
+  width: 0;
+  pointer-events: none;
+  transition: left 30s linear;
+}
+
+.forecast-now-marker::after {
+  content: "";
+  position: absolute;
+  top: 2.05vh;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  transform: translateX(-1px);
+  background: linear-gradient(180deg,rgba(255,101,51,.95),rgba(255,101,51,.1));
+  box-shadow: 0 0 .6vw rgba(255,101,51,.5);
+}
+
+.forecast-now-marker span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translateX(-50%);
+  padding: .18vh .34vw;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--orange);
+  box-shadow: 0 .25vh .75vh rgba(0,0,0,.24);
+  font-size: clamp(7px,.44vw,10px);
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.forecast-card .hour {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  min-height: 0;
+  padding: 2.8vh .32vw .55vh;
+  border: 0;
+  border-right: 1px solid rgba(255,255,255,.11);
+  border-radius: 0;
+  background: linear-gradient(180deg,rgba(255,255,255,.035),rgba(10,10,15,.08));
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  align-items: center;
+  justify-items: center;
+  gap: .18vh;
+  text-align: center;
+}
+
+.forecast-card .hour:last-child { border-right: 0; }
+.forecast-card .hour.is-current-hour { background: linear-gradient(180deg,rgba(255,101,51,.13),rgba(255,101,51,.03)); }
+.forecast-card .hour .time {
+  color: #fff;
+  font-size: clamp(10px,.72vw,15px);
+  font-weight: 900;
+  text-shadow: 0 .15vh .35vh rgba(0,0,0,.42);
+}
+.forecast-card .hour .icon {
+  align-self: center;
+  font-size: clamp(25px,1.9vw,40px);
+  filter: drop-shadow(0 .25vh .45vh rgba(0,0,0,.28));
+  animation: icon-float 3.8s ease-in-out infinite;
+  animation-play-state: var(--motion-play);
+}
+.forecast-card .hour .degrees {
+  color: #fff;
+  font-size: clamp(20px,1.5vw,31px);
+  line-height: .95;
+  text-shadow: 0 .18vh .42vh rgba(0,0,0,.4);
+}
+.forecast-details {
+  min-height: 2.45vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: .13vh;
+  color: #fff;
+  font-size: clamp(7px,.46vw,10px);
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.forecast-detail { display:block; padding:.12vh .26vw; border-radius:999px; background:rgba(10,15,20,.28); text-shadow:0 1px 2px rgba(0,0,0,.36); }
+.forecast-detail.sun { color:#fff0a9; }
+.forecast-detail.rain { color:#d4efff; }
+.forecast-detail.dry { color:rgba(255,255,255,.72); font-weight:800; letter-spacing:.06em; }
+
+/* ---- Compacte Reddingsbrigade: geen dubbele status meer ---- */
+.rescue-card {
+  padding: 1.15vh .8vw .72vh;
+}
+.rescue-heading { align-items:center; }
+.rescue-heading h2 { font-size:clamp(14px,1.05vw,21px); }
+.rescue-card .source-chip { font-size:clamp(7px,.46vw,10px); padding:.38vh .48vw; }
+.rescue-posts {
+  margin-top: .55vh;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(2,minmax(0,1fr));
+  gap: .48vh;
+}
+.compact-rescue-post.rescue-post {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  padding: 0;
+}
+.compact-rescue-post.has-alert { grid-template-columns:minmax(0,1fr) clamp(64px,5vw,92px); }
+.compact-rescue-post .rescue-copy { padding:.52vh .55vw; }
+.compact-rescue-post .rescue-post-top { gap:.35vw; }
+.compact-rescue-post .rescue-post h3,
+.compact-rescue-post h3 { font-size:clamp(10px,.75vw,15px); }
+.compact-rescue-post .lifeguard-status { padding:.28vh .42vw; font-size:clamp(7px,.48vw,10px); }
+.compact-rescue-post .status-light { width:.42vw; height:.42vw; min-width:5px; min-height:5px; }
+.compact-rescue-post .safety-message {
+  margin-top:.38vh;
+  padding-top:.35vh;
+  gap:.38vw;
+}
+.compact-rescue-post .safety-mini-icon {
+  width:clamp(20px,1.55vw,29px);
+  height:clamp(20px,2.4vh,29px);
+  font-size:clamp(11px,.82vw,16px);
+}
+.compact-rescue-post .safety-message img {
+  width:clamp(22px,1.65vw,31px);
+  height:clamp(22px,2.7vh,31px);
+}
+.compact-rescue-post .safety-message strong { font-size:clamp(8px,.52vw,11px); }
+.compact-rescue-post .safety-message span:not(.safety-mini-icon) { font-size:clamp(7px,.42vw,9px); -webkit-line-clamp:1; }
+.rescue-alert-symbol {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:.25vh;
+  border-left:1px solid rgba(255,255,255,.12);
+  text-align:center;
+}
+.rescue-alert-symbol span { font-size:clamp(21px,1.8vw,34px); }
+.rescue-alert-symbol strong { font-size:clamp(7px,.45vw,10px); line-height:1; }
+.safety-warning .rescue-alert-symbol { background:linear-gradient(180deg,#ffe600,#f6d900); color:#211b00; }
+.safety-danger .rescue-alert-symbol { background:linear-gradient(180deg,#ce2d25,#8f1814); color:#fff; }
+
+/* Laptop/kiosk houden dezelfde brede forecastverhouding. */
+html[data-mode="tv"] .forecast-card,
+html[data-mode="laptop"] .forecast-card { overflow:hidden; }
+
+/* Mobiel: dezelfde visuele forecast als horizontale swipe-tijdlijn. */
+@media (max-width:700px) {
+  .dashboard { display:block; }
+  .forecast-card { padding:16px 12px 13px; }
+  .forecast-heading { padding:0 3px; }
+  .forecast-source { font-size:9px; }
+  .hourly-forecast {
+    height:210px;
+    grid-template-columns:repeat(8,100px);
+    overflow-x:auto;
+    overflow-y:hidden;
+    scroll-snap-type:x proximity;
+    border-radius:13px;
+  }
+  .forecast-card .hour { min-height:208px; padding:39px 5px 10px; scroll-snap-align:start; }
+  .forecast-card .hour .time { font-size:13px; }
+  .forecast-card .hour .icon { font-size:31px; }
+  .forecast-card .hour .degrees { font-size:25px; }
+  .forecast-details { font-size:9px; min-height:39px; }
+  .forecast-timeline { top:31px; }
+  .forecast-now-marker { top:7px; bottom:5px; }
+  .forecast-now-marker::after { top:25px; }
+  .forecast-now-marker span { font-size:8px; padding:3px 5px; }
+  .rescue-posts { display:block; }
+  .compact-rescue-post.rescue-post,
+  .compact-rescue-post.has-alert { grid-template-columns:minmax(0,1fr); min-height:0; margin-top:9px; }
+  .compact-rescue-post .rescue-copy { padding:12px; }
+  .compact-rescue-post .rescue-post-top { align-items:flex-start; flex-direction:column; }
+  .compact-rescue-post .lifeguard-status { padding:6px 8px; font-size:11px; }
+  .compact-rescue-post .safety-message strong { font-size:12px; }
+  .rescue-alert-symbol { border-left:0; border-top:1px solid rgba(255,255,255,.12); padding:8px; flex-direction:row; }
+}

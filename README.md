@@ -1,27 +1,22 @@
-# Cosmico Beach Dashboard 3.3.5
+# Cosmico Beach Dashboard 3.4.0
 
-## Nieuw
-- Reddingsbrigade-blok met herkenbaar oranje accent; rood/groen blijft exclusief voor veiligheidsstatus.
-- Lifeguard-status: 🛟 LIFEGUARD ON DUTY / ❌ NO LIFEGUARD.
-- Webcam vult TV/kiosk en desktop/laptop zoveel mogelijk zonder vervorming.
-- Uurverwachting groter en beter leesbaar op afstand.
-- Slimme uurregel: bij minder dan 10% regenkans geen regenmelding.
-- Vanaf 10% verschijnt 🌧️ met het actuele regenpercentage.
-- Zon én regenkans worden gecombineerd, bijvoorbeeld: ☀️ 25 MIN · 🌧️ 30% REGEN.
-- Minuten zon per uur komen uit Open-Meteo `sunshine_duration`.
-- Onderste adviesbalk bevat dynamische Cosmico-weer-oneliners met een knipoog.
-- Oneliner extra prominent op mobiel en in het losse Wix-adviesblok.
+## Belangrijkste wijzigingen
+- Nieuwe brede 8-uurs weersverwachting als één doorlopende tijdlijn.
+- Dynamische luchtkleur per uur op basis van KNMI-modeldata: dag/nacht, bewolking, regen en zonsondergang.
+- Bewegende `NU`-marker laat zien waar je je op de tijdlijn bevindt.
+- Regeninformatie verschijnt vanaf 10% kans; zonminuten en relevante neerslaghoeveelheid staan compact onder het uur.
+- Weerbron voor de lokale forecast staat nu primair op Open-Meteo `knmi_seamless`; bij een storing valt het dashboard automatisch terug op Open-Meteo Best Match.
+- Reddingsbrigade-blok is compacter en smaller: Noord/Zuid staan onder elkaar en dubbele status-iconen zijn verwijderd.
+- Bij een echte waarschuwing of gevaar blijft de waarschuwing juist prominent zichtbaar.
+- Bestaande kioskfuncties blijven behouden: camera-fill, bewegend COSMICO BEACH en de rustige focusanimatie van de conditie-items.
+- Mobiel toont dezelfde forecast als horizontaal swipebare tijdlijn.
 
-Cacheversie: 335
+## Veiligheid
+De strandstatus en waarschuwingen komen uit de Strand App. Officiële vlaggen en aanwijzingen van de Reddingsbrigade blijven leidend.
 
-- 3.3.5: officieel Reddingsbrigade-oranje (#ff5a00) duidelijker zichtbaar; layout ongewijzigd.
+## Data
+- Weer: KNMI Seamless via Open-Meteo (automatische Best Match-fallback bij storing)
+- Marine: Open-Meteo Marine
+- Strandstatus: Strand App Zandvoort
 
-
-## Kiosk animatie 3.3.5
-Alleen in TV/kiosk-modus komen de zeven conditie-items onderaan één voor één 2 seconden vergroot naar voren. Daarna volgt 3 seconden rust voordat het volgende item wordt uitgelicht. Desktop, mobiel en Wix-embeds blijven statisch.
-
-- 3.3.5: kiosk focusanimatie vertraagd: circa 1,05 s rustig vergroten, circa 2 s volledig groot, circa 1,05 s rustig verkleinen, daarna 3 s rust.
-
-
-## 3.3.5 — bewegend COSMICO BEACH in kiosk
-Alleen in TV/kiosk-modus beweegt de grote COSMICO BEACH-merknaam langzaam van links naar rechts en terug. De weer-pill en klok blijven op hun vaste plek en liggen visueel boven de bewegende merknaam.
+Cacheversie: 340

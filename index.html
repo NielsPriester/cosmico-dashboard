@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#bc5e42">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>Cosmico Beach — Dashboard 3.3.5</title>
-  <link rel="stylesheet" href="style.css?v=335">
+  <title>Cosmico Beach — Dashboard 3.4.0</title>
+  <link rel="stylesheet" href="style.css?v=340">
 </head>
 <body>
   <div class="ambient" aria-hidden="true">
@@ -18,7 +18,7 @@
   </div>
 
   <main id="webEmbed" class="web-embed" aria-label="Actuele strandinformatie Cosmico Beach">
-    <a class="web-embed-link" href="https://dashboard.cosmicobeach.nl/?mode=mobile&v=332" target="_top" aria-label="Bekijk alle live strandinformatie">
+    <a class="web-embed-link" href="https://dashboard.cosmicobeach.nl/?mode=mobile&v=340" target="_top" aria-label="Bekijk alle live strandinformatie">
       <div class="web-main">
         <span id="webWeatherIcon" class="web-weather-icon">☀️</span>
         <div class="web-weather-copy">
@@ -37,7 +37,7 @@
   </main>
 
   <main id="adviceEmbed" class="advice-embed" aria-label="Actueel strandadvies Cosmico Beach">
-    <a class="advice-embed-link" href="https://dashboard.cosmicobeach.nl/?mode=mobile&v=332" target="_top" aria-label="Bekijk alle live strandinformatie">
+    <a class="advice-embed-link" href="https://dashboard.cosmicobeach.nl/?mode=mobile&v=340" target="_top" aria-label="Bekijk alle live strandinformatie">
       <span class="advice-embed-icon" aria-hidden="true">✦</span>
       <div class="advice-embed-copy">
         <small>VANDAAG AAN HET STRAND</small>
@@ -123,7 +123,10 @@
       </section>
 
       <section class="card forecast-card">
-        <div class="section-label">VERWACHTING KOMENDE UREN</div>
+        <div class="forecast-heading">
+          <div class="section-label">VERWACHTING KOMENDE UREN</div>
+          <span id="forecastSource" class="forecast-source">KNMI · 8 UUR</span>
+        </div>
         <div id="hourlyForecast" class="hourly-forecast" aria-live="polite">
           <div class="loading-copy">Verwachting ophalen…</div>
         </div>
@@ -140,7 +143,6 @@
         <div id="rescuePosts" class="rescue-posts" aria-live="polite">
           <div class="rescue-loading">Status van de strandposten wordt opgehaald…</div>
         </div>
-        <p class="rescue-disclaimer">Volg op het strand altijd de actuele vlaggen en aanwijzingen van de lifeguards.</p>
       </section>
 
       <section class="conditions-strip">
@@ -174,11 +176,11 @@
 
     <footer>
       <span>Good food · Cold drinks · Beach life</span>
-      <div class="mode-label"><span id="modeName">AUTO</span> · DASHBOARD 3.3 · Data: Open-Meteo & Strand App</div>
+      <div class="mode-label"><span id="modeName">AUTO</span> · DASHBOARD 3.4 · Data: KNMI via Open-Meteo & Strand App</div>
       <div id="connectionState" class="connection-state" aria-live="polite"><span class="connection-dot"></span><span id="connectionText">Verbinden…</span></div>
     </footer>
   </div>
 
-  <script src="script.js?v=335" defer></script>
+  <script src="script.js?v=340" defer></script>
 </body>
 </html>
