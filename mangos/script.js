@@ -79,14 +79,9 @@ function scheduleConditionFocus(delay = 3000) {
 }
 
 function syncConditionFocus() {
-  if (document.documentElement.dataset.mode === "tv") {
-    if (!conditionFocusTimer && !document.querySelector(".conditions-strip .condition-item.is-focus")) {
-      scheduleConditionFocus(3000);
-    }
-  } else {
-    stopConditionFocus();
-    conditionFocusIndex = 0;
-  }
+  // Houd kiosk-schermen rustig: de oude zoomcarrousel kon waarden bedekken.
+  stopConditionFocus();
+  conditionFocusIndex = 0;
 }
 
 function setMode() {

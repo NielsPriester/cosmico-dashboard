@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#a94132">
   <meta name="robots" content="noindex,nofollow">
   <title>Mango's Beachbar — Live stranddashboard</title>
-  <link rel="stylesheet" href="style.css?v=1">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
   <div class="paper-noise" aria-hidden="true"></div>
@@ -49,25 +49,27 @@
         <div id="hourlyForecast" class="hourly-forecast"><div class="loading-copy">Verwachting ophalen…</div></div>
       </section>
 
-      <section class="card rescue-card">
-        <div class="card-heading"><div><span class="section-label">SEGURIDAD DE PLAYA</span><h2>Reddingsbrigade Zandvoort</h2></div><span class="source-chip">STRAND APP</span></div>
-        <div id="rescuePosts" class="rescue-posts"><div class="rescue-loading">Strandpoststatus ophalen…</div></div>
-      </section>
+      <section class="beach-status-panel" aria-label="Strand- en zeecondities">
+        <section class="card rescue-card">
+          <div class="card-heading"><div><span class="section-label">SEGURIDAD DE PLAYA</span><h2>Reddingsbrigade Zandvoort</h2></div><span class="source-chip">STRAND APP</span></div>
+          <div id="rescuePosts" class="rescue-posts"><div class="rescue-loading">Strandpoststatus ophalen…</div></div>
+        </section>
 
-      <section class="conditions-strip">
-        <div class="condition-item"><b>🌊</b><span>Golven<strong id="waveHeight">-- m</strong></span></div>
-        <div class="condition-item"><b>🌡</b><span>Zeewater<strong id="waterTemperature">--°C</strong></span></div>
-        <div class="condition-item tide-item"><svg id="tideSpark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="tideSparkLine" points=""/><circle id="tideSparkNow" cx="0" cy="17" r="2.4"/></svg><span>Getijden · modelindicatie<strong id="tideState">Waterstand laden…</strong><em><b id="tideHeight">Stand -- m</b> · Vloed <b id="nextHighTide">--:--</b> · Eb <b id="nextLowTide">--:--</b></em></span></div>
-        <div class="condition-item"><b>🧭</b><span>Golfrichting<strong id="waveDirection">--</strong></span></div>
-        <div class="condition-item"><b>〰</b><span>Golfperiode<strong id="wavePeriod">-- sec</strong></span></div>
-        <div class="condition-item"><b>💧</b><span>Luchtvochtigheid<strong id="humidity">--%</strong></span></div>
-        <div class="condition-item"><b id="sunIcon">🌅</b><span><span id="sunLabel">Zonsondergang</span><strong id="sunset">--:--</strong></span></div>
+        <section class="conditions-strip">
+          <div class="condition-item"><b>🌊</b><span>Golven<strong id="waveHeight">-- m</strong></span></div>
+          <div class="condition-item"><b>🌡</b><span>Zeewater<strong id="waterTemperature">--°C</strong></span></div>
+          <div class="condition-item tide-item"><svg id="tideSpark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="tideSparkLine" points=""/><circle id="tideSparkNow" cx="0" cy="17" r="2.4"/></svg><span>Getijden · modelindicatie<strong id="tideState">Waterstand laden…</strong><em><b id="tideHeight">Stand -- m</b> · Vloed <b id="nextHighTide">--:--</b> · Eb <b id="nextLowTide">--:--</b></em></span></div>
+          <div class="condition-item"><b>🧭</b><span>Golfrichting<strong id="waveDirection">--</strong></span></div>
+          <div class="condition-item"><b>〰</b><span>Golfperiode<strong id="wavePeriod">-- sec</strong></span></div>
+          <div class="condition-item"><b>💧</b><span>Luchtvochtigheid<strong id="humidity">--%</strong></span></div>
+          <div class="condition-item"><b id="sunIcon">🌅</b><span><span id="sunLabel">Zonsondergang</span><strong id="sunset">--:--</strong></span></div>
+        </section>
       </section>
 
       <section class="advice-bar"><span>✦</span><div><small>HOY EN LA PLAYA</small><strong id="beachAdvice">Actueel strandadvies wordt samengesteld…</strong></div></section>
     </main>
     <footer><span>Sol · Sabor · Playa</span><div><span id="modeName">AUTO</span> · MANGO'S LIVE · KNMI via Open-Meteo & Strand App</div><div id="connectionState" class="connection-state"><i></i><span id="connectionText">Verbinden…</span></div></footer>
   </div>
-  <script src="script.js?v=1" defer></script>
+  <script src="script.js?v=2" defer></script>
 </body>
 </html>
