@@ -78,3 +78,23 @@ html[data-mode="tv"] .advice-bar small{white-space:nowrap}
 html[data-mode="tv"] .advice-bar strong{font-size:1.45rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 html[data-mode="tv"] footer{height:32px;flex:none;padding:7px 22px;font-size:.62rem}
 html[data-mode="tv"] .condition-item.is-focus{transform:none;background:transparent;box-shadow:none}
+
+/* 3.5.0 visual finish — contrast and hierarchy for viewing across the room. */
+.topbar{background:#762a24ed;box-shadow:0 7px 0 #dda13a55}
+.headline-weather{padding:9px 18px;border:2px solid #f4e3bb55;border-radius:999px;background:#471b1850}
+.clock strong{color:var(--gold);text-shadow:2px 2px 0 #321411}
+.card:before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,var(--gold),var(--red),var(--turq),var(--gold));z-index:3}
+.current-card{background:linear-gradient(130deg,var(--cream) 0 60%,#e2c27d 60% 74%,#d3aa5d 74%)}
+.section-label{position:relative;z-index:4}
+.camera-card{background:linear-gradient(145deg,#211713,#3d2820)}
+.camera-frame{box-shadow:0 7px 0 #0b0908,0 0 0 1px #dda13a88}
+.forecast-card{background:linear-gradient(155deg,#f4e3bb,#e5c77f)}
+.conditions-strip{background:linear-gradient(120deg,#084e53,#0d686c)}
+.condition-item strong{color:#fff7df}
+.advice-bar{background:linear-gradient(90deg,#dda13a,#efbd58 58%,#dda13a);box-shadow:inset 0 0 0 3px #f8df9d}
+.advice-bar>span{color:var(--red);text-shadow:1px 1px 0 var(--cream)}
+footer{background:#5c211d;border-top:1px solid #e7b86666}
+.loading-copy,.rescue-loading{display:grid;place-items:center;width:100%;height:100%;min-height:64px;padding:12px;text-align:center;font-weight:900;letter-spacing:.04em}
+html[data-mode="tv"] .headline-weather{min-width:270px;justify-content:center}
+html[data-mode="tv"] .card-heading{position:relative;z-index:4}
+html[data-mode="tv"] .host-art{filter:drop-shadow(5px 7px 0 #6e2b2266)}

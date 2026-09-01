@@ -1,6 +1,6 @@
 "use strict";
 
-/* MANGO'S BEACHBAR DASHBOARD — zelfstandig afgeleid van Cosmico 3.4 */
+/* MANGO'S BEACHBAR DASHBOARD 3.5.0 — stabiele Cosmico 3.4 data-engine */
 const CONFIG = {
   timezone: "Europe/Amsterdam",
   weatherUrl:
@@ -31,8 +31,7 @@ const CONFIG = {
   retryMs: 60 * 1000,
   requestTimeoutMs: 12 * 1000,
   hardReloadMs: 6 * 60 * 60 * 1000,
-  cacheKey: "mangos-dashboard-v1-cache",
-  cameraRefreshMs: 60 * 60 * 1000,
+  cacheKey: "mangos-dashboard-350-cache",
   dawnDuskWindowMs: 45 * 60 * 1000
 };
 
@@ -41,7 +40,6 @@ const $ = (id) => document.getElementById(id);
 let refreshTimer = null;
 let beachFailureCount = 0;
 let beachNextAttemptAt = 0;
-let cameraRefreshTimer = null;
 let conditionFocusTimer = null;
 let conditionFocusIndex = 0;
 let forecastRange = null;
@@ -102,39 +100,6 @@ function setMode() {
 function setText(id, value, fallback = "—") {
   const node = $(id);
   if (node) node.textContent = value === undefined || value === null || value === "" ? fallback : value;
-}
-
-function refreshCamera() {
-  const camera = $("liveCamera");
-  const fallback = $("cameraFallback");
-  if (!camera) return;
-
-  if (fallback) {
-    fallback.classList.remove("is-hidden");
-    const message = fallback.querySelector("span");
-    if (message) message.textContent = navigator.onLine ? "Livecam wordt geladen…" : "Geen verbinding · livecam probeert opnieuw";
-  }
-
-  const source = camera.dataset.source || camera.getAttribute("src");
-  if (!source) return;
-  camera.dataset.source = source;
-  camera.setAttribute("src", "about:blank");
-  window.setTimeout(() => camera.setAttribute("src", source), 250);
-}
-
-function startCameraGuard() {
-  const camera = $("liveCamera");
-  const fallback = $("cameraFallback");
-  if (!camera) return;
-
-  camera.dataset.source = camera.getAttribute("src") || "";
-  camera.addEventListener("load", () => {
-    if (camera.getAttribute("src") === "about:blank") return;
-    window.setTimeout(() => fallback?.classList.add("is-hidden"), 1200);
-  });
-
-  window.clearInterval(cameraRefreshTimer);
-  cameraRefreshTimer = window.setInterval(refreshCamera, CONFIG.cameraRefreshMs);
 }
 
 function numberText(value, decimals = 0) {
@@ -692,6 +657,17 @@ function setConnection(online, text) {
   setText("connectionText", text);
 }
 
+function renderSafely(label, action, fallback) {
+  try {
+    action();
+    return true;
+  } catch (error) {
+    if (fallback) fallback(error);
+    console.error("Mango's 3.5.0 · " + label, error);
+    return false;
+  }
+}
+
 function saveCache(data) {
   try { localStorage.setItem(CONFIG.cacheKey, JSON.stringify({ savedAt: Date.now(), data })); } catch (_) { /* opslag niet beschikbaar */ }
 }
@@ -771,14 +747,30 @@ function applyData(weatherData, marineData, posts, fromCache = false) {
   setText("wavePeriod", `${numberText(marine.wave_period, 1)} sec`);
   setText("waterTemperature", `${numberText(nearestHourlyValue(marineHourly, "sea_surface_temperature"), 1)}°C`);
   setText("webWaterTemperature", `${numberText(nearestHourlyValue(marineHourly, "sea_surface_temperature"), 1)}°C`);
-  renderTide(marineHourly);
+  renderSafely("getijden", () => renderTide(marineHourly), () => {
+    setText("tideState", "Model tijdelijk niet beschikbaar");
+    setText("tideHeight", "Stand -- m");
+  });
 
-  if (weatherData?.hourly) renderHourly(weatherData.hourly);
-  renderRescuePosts(Array.isArray(posts) ? posts : []);
-  updateWebGuardStatus(Array.isArray(posts) ? posts : []);
-  const advice = buildAdvice(current, marine, uv);
-  setText("beachAdvice", advice);
-  setText("webAdvice", advice);
+  renderSafely("8-uursverwachting", () => {
+    if (!weatherData?.hourly) throw new Error("Geen uurgegevens");
+    renderHourly(weatherData.hourly);
+  }, () => {
+    const forecast = $("hourlyForecast");
+    if (forecast) forecast.innerHTML = '<div class="loading-copy">8-uursverwachting tijdelijk niet beschikbaar</div>';
+    setText("forecastSource", "LATER OPNIEUW");
+  });
+
+  renderSafely("reddingsbrigade", () => {
+    renderRescuePosts(Array.isArray(posts) ? posts : []);
+    updateWebGuardStatus(Array.isArray(posts) ? posts : []);
+  }, () => renderRescuePosts([]));
+
+  renderSafely("strandadvies", () => {
+    const advice = buildAdvice(current, marine, uv);
+    setText("beachAdvice", advice);
+    setText("webAdvice", advice);
+  }, () => setText("beachAdvice", "Geniet van la playa en volg altijd de aanwijzingen ter plaatse."));
   setConnection(!fromCache, fromCache ? "Laatste opgeslagen gegevens" : `Bijgewerkt ${formatClock(new Date())}`);
 }
 
@@ -856,15 +848,11 @@ async function loadDashboard() {
 setMode();
 applyTheme();
 updateClock();
-startCameraGuard();
 window.setInterval(updateClock, 1000);
 loadDashboard();
 window.setTimeout(() => window.location.reload(), CONFIG.hardReloadMs);
 window.addEventListener("resize", setMode);
-window.addEventListener("online", () => { loadDashboard(); refreshCamera(); });
+window.addEventListener("online", loadDashboard);
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    loadDashboard();
-    refreshCamera();
-  }
+  if (!document.hidden) loadDashboard();
 });
