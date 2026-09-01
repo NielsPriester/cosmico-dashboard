@@ -32,6 +32,7 @@ const CONFIG = {
   requestTimeoutMs: 12 * 1000,
   hardReloadMs: 6 * 60 * 60 * 1000,
   cacheKey: "mangos-dashboard-v1-cache",
+  cameraRefreshMs: 60 * 60 * 1000,
   dawnDuskWindowMs: 45 * 60 * 1000
 };
 
@@ -40,6 +41,7 @@ const $ = (id) => document.getElementById(id);
 let refreshTimer = null;
 let beachFailureCount = 0;
 let beachNextAttemptAt = 0;
+let cameraRefreshTimer = null;
 let conditionFocusTimer = null;
 let conditionFocusIndex = 0;
 let forecastRange = null;
@@ -100,6 +102,39 @@ function setMode() {
 function setText(id, value, fallback = "—") {
   const node = $(id);
   if (node) node.textContent = value === undefined || value === null || value === "" ? fallback : value;
+}
+
+function refreshCamera() {
+  const camera = $("liveCamera");
+  const fallback = $("cameraFallback");
+  if (!camera) return;
+
+  if (fallback) {
+    fallback.classList.remove("is-hidden");
+    const message = fallback.querySelector("span");
+    if (message) message.textContent = navigator.onLine ? "Livecam wordt geladen…" : "Geen verbinding · livecam probeert opnieuw";
+  }
+
+  const source = camera.dataset.source || camera.getAttribute("src");
+  if (!source) return;
+  camera.dataset.source = source;
+  camera.setAttribute("src", "about:blank");
+  window.setTimeout(() => camera.setAttribute("src", source), 250);
+}
+
+function startCameraGuard() {
+  const camera = $("liveCamera");
+  const fallback = $("cameraFallback");
+  if (!camera) return;
+
+  camera.dataset.source = camera.getAttribute("src") || "";
+  camera.addEventListener("load", () => {
+    if (camera.getAttribute("src") === "about:blank") return;
+    window.setTimeout(() => fallback?.classList.add("is-hidden"), 1200);
+  });
+
+  window.clearInterval(cameraRefreshTimer);
+  cameraRefreshTimer = window.setInterval(refreshCamera, CONFIG.cameraRefreshMs);
 }
 
 function numberText(value, decimals = 0) {
@@ -821,8 +856,15 @@ async function loadDashboard() {
 setMode();
 applyTheme();
 updateClock();
+startCameraGuard();
 window.setInterval(updateClock, 1000);
 loadDashboard();
 window.setTimeout(() => window.location.reload(), CONFIG.hardReloadMs);
 window.addEventListener("resize", setMode);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) loadDashboard(); });
+window.addEventListener("online", () => { loadDashboard(); refreshCamera(); });
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    loadDashboard();
+    refreshCamera();
+  }
+});

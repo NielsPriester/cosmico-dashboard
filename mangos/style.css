@@ -6,15 +6,21 @@ html[data-mode="tv"] .condition-item.is-focus{z-index:5;transform:scale(1.12);ba
 
 .beach-status-panel{grid-column:1/-1;display:grid;gap:18px}
 
+.camera-frame iframe{position:relative;z-index:2}
+.camera-fallback{position:absolute;inset:0;z-index:1;display:grid;place-items:center;padding:18px;text-align:center;color:var(--cream);background:linear-gradient(145deg,#1d1714,#39241d);font-weight:900;letter-spacing:.08em}
+.camera-fallback.is-hidden{opacity:0;visibility:hidden;transition:opacity .5s,visibility .5s}
+
 /* De kioskweergave is een vaste 16:9-compositie: geen pagina, maar één scherm. */
 html[data-mode="tv"],html[data-mode="tv"] body{width:100%;height:100%;min-height:0;overflow:hidden}
 html[data-mode="tv"] #app{height:100vh;min-height:0}
-html[data-mode="tv"] .topbar{height:104px;min-height:104px;padding:10px 28px;grid-template-columns:minmax(450px,1fr) auto 260px;gap:32px;border-bottom-width:4px}
+html[data-mode="tv"] .topbar{height:104px;min-height:104px;padding:10px 28px;grid-template-columns:minmax(450px,1fr) minmax(270px,auto) minmax(300px,340px);gap:24px;border-bottom-width:4px}
 html[data-mode="tv"] .roundel{width:76px;height:76px}
 html[data-mode="tv"] .brand{gap:14px}
 html[data-mode="tv"] .brand h1{font-size:3.6rem;line-height:.78}
 html[data-mode="tv"] .headline-weather strong{font-size:2.75rem}
 html[data-mode="tv"] .clock strong{font-size:3rem}
+html[data-mode="tv"] .clock{min-width:0;overflow:hidden}
+html[data-mode="tv"] .clock span{white-space:nowrap;font-size:.86rem}
 html[data-mode="tv"] .dashboard{min-height:0;height:calc(100vh - 136px);flex:none;display:grid;grid-template-columns:29fr 41fr 30fr;grid-template-rows:minmax(0,1fr) 188px 72px;grid-template-areas:"current camera forecast" "status status status" "advice advice advice";gap:12px;padding:12px 22px}
 html[data-mode="tv"] .current-card{grid-area:current;min-width:0;min-height:0;display:flex;flex-direction:column;background:linear-gradient(145deg,var(--cream) 0 67%,#d6b36f 67%)}
 html[data-mode="tv"] .poster-copy{padding:24px 20px 10px;position:relative;z-index:2}

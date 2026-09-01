@@ -4,9 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#a94132">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="robots" content="noindex,nofollow">
   <title>Mango's Beachbar — Live stranddashboard</title>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="preconnect" href="https://www.youtube.com">
+  <link rel="stylesheet" href="style.css?v=340">
 </head>
 <body>
   <div class="paper-noise" aria-hidden="true"></div>
@@ -41,7 +45,10 @@
 
       <section class="card camera-card">
         <div class="card-heading"><div><span class="section-label">EN VIVO</span><h2>Live vanaf het strand</h2></div><span class="live"><i></i> LIVE</span></div>
-        <div class="camera-frame"><iframe id="liveCamera" title="Live webcam Zandvoort" src="https://www.youtube.com/embed/q0-DDh1zdY4?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+        <div class="camera-frame">
+          <iframe id="liveCamera" title="Live webcam Zandvoort" src="https://www.youtube.com/embed/q0-DDh1zdY4?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          <div id="cameraFallback" class="camera-fallback" aria-live="polite"><span>Livecam wordt geladen…</span></div>
+        </div>
       </section>
 
       <section class="card forecast-card">
@@ -70,6 +77,6 @@
     </main>
     <footer><span>Sol · Sabor · Playa</span><div><span id="modeName">AUTO</span> · MANGO'S LIVE · KNMI via Open-Meteo & Strand App</div><div id="connectionState" class="connection-state"><i></i><span id="connectionText">Verbinden…</span></div></footer>
   </div>
-  <script src="script.js?v=2" defer></script>
+  <script src="script.js?v=340" defer></script>
 </body>
 </html>
