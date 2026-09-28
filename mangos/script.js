@@ -8,7 +8,7 @@
    de rest van het scherm.
    ========================================================= */
 
-var VERSION = "3.6.0";
+var VERSION = "3.6.1";
 var LAT = "52.3765", LON = "4.5330";
 var WEATHER_BASE =
   "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
@@ -80,24 +80,46 @@ var DAYS = ["zondag", "maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", 
 var MONTHS = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"];
 
 /* ---------- Modus + schalen ---------- */
+/* Schermmaat meten via een 100vw x 100vh probe: sommige tv-WebViews (Fully Kiosk)
+   geven via innerWidth fysieke pixels door i.p.v. CSS-pixels. */
+function viewportSize() {
+  var w = 0, h = 0;
+  var p = $("vpProbe");
+  if (p) { var r = p.getBoundingClientRect(); w = r.width; h = r.height; }
+  var de = document.documentElement;
+  var cands = [[w, h], [de.clientWidth, de.clientHeight], [window.innerWidth, window.innerHeight]];
+  if (window.visualViewport) cands.push([window.visualViewport.width, window.visualViewport.height]);
+  // Neem de kleinste geldige maat: nooit groter schalen dan wat echt zichtbaar is.
+  var bw = Infinity, bh = Infinity;
+  for (var i = 0; i < cands.length; i++) {
+    if (cands[i][0] > 50 && cands[i][1] > 50 && cands[i][0] * cands[i][1] < bw * bh) { bw = cands[i][0]; bh = cands[i][1]; }
+  }
+  if (!isFinite(bw)) { bw = window.innerWidth || 1920; bh = window.innerHeight || 1080; }
+  return { w: bw, h: bh };
+}
 function getMode() {
   var q = (window.location.search.match(/[?&]mode=([a-z]+)/i) || [])[1];
   q = q ? q.toLowerCase() : "";
   if (q === "mobile") return "mobile";
   if (q === "tv" || q === "laptop" || q === "kiosk") return "tv";
-  return window.innerWidth < 760 ? "mobile" : "tv";
+  return viewportSize().w < 760 ? "mobile" : "tv";
 }
+var lastFit = "";
 function fitStage() {
   var mode = getMode();
   document.documentElement.setAttribute("data-mode", mode);
   var stage = $("stage");
   if (!stage) return;
-  if (mode === "mobile") { stage.style.transform = ""; stage.style.left = ""; stage.style.top = ""; return; }
-  var w = window.innerWidth, h = window.innerHeight;
-  var s = Math.min(w / CONFIG.canvasW, h / CONFIG.canvasH);
+  if (mode === "mobile") { stage.style.transform = ""; stage.style.webkitTransform = ""; stage.style.left = ""; stage.style.top = ""; lastFit = ""; return; }
+  var vp = viewportSize();
+  var s = Math.min(vp.w / CONFIG.canvasW, vp.h / CONFIG.canvasH);
+  var key = vp.w + "x" + vp.h;
+  if (key === lastFit) return;
+  lastFit = key;
+  stage.style.webkitTransform = "scale(" + s + ")";
   stage.style.transform = "scale(" + s + ")";
-  stage.style.left = Math.max(0, (w - CONFIG.canvasW * s) / 2) + "px";
-  stage.style.top = Math.max(0, (h - CONFIG.canvasH * s) / 2) + "px";
+  stage.style.left = Math.max(0, (vp.w - CONFIG.canvasW * s) / 2) + "px";
+  stage.style.top = Math.max(0, (vp.h - CONFIG.canvasH * s) / 2) + "px";
 }
 
 /* ---------- Zon / thema ---------- */
@@ -554,4 +576,7 @@ setInterval(cycleFocus, 4000);
 loadDashboard();
 setTimeout(function () { window.location.reload(); }, CONFIG.hardReloadMs);
 window.addEventListener("resize", fitStage);
+window.addEventListener("load", fitStage);
+setTimeout(fitStage, 500); setTimeout(fitStage, 2000);
+setInterval(fitStage, 5000);
 document.addEventListener("visibilitychange", function () { if (!document.hidden) loadDashboard(); });
