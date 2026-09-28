@@ -1,858 +1,557 @@
 "use strict";
 
-/* MANGO'S BEACHBAR DASHBOARD 3.5.0 — stabiele Cosmico 3.4 data-engine */
-const CONFIG = {
-  timezone: "Europe/Amsterdam",
-  weatherUrl:
-    "https://api.open-meteo.com/v1/forecast" +
-    "?latitude=52.3765&longitude=4.5330" +
-    "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code," +
-    "wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,visibility,cloud_cover,is_day" +
-    "&hourly=temperature_2m,weather_code,precipitation_probability,precipitation,sunshine_duration,cloud_cover,is_day" +
-    "&daily=temperature_2m_max,uv_index_max,sunrise,sunset" +
-    "&timezone=Europe%2FAmsterdam&forecast_days=2&wind_speed_unit=kmh&models=knmi_seamless",
-  weatherFallbackUrl:
-    "https://api.open-meteo.com/v1/forecast" +
-    "?latitude=52.3765&longitude=4.5330" +
-    "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code," +
-    "wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,visibility,cloud_cover,is_day" +
-    "&hourly=temperature_2m,weather_code,precipitation_probability,precipitation,sunshine_duration,cloud_cover,is_day" +
-    "&daily=temperature_2m_max,uv_index_max,sunrise,sunset" +
-    "&timezone=Europe%2FAmsterdam&forecast_days=2&wind_speed_unit=kmh",
+/* =========================================================
+   MANGO'S BEACHBAR DASHBOARD 3.6.0
+   Bewust geschreven zonder ?. / ?? / replaceAll / Promise.allSettled,
+   zodat het ook draait op oudere tv-browsers (PEAQ / Android TV WebView).
+   Elke render-stap staat los in een try/catch: één fout blokkeert niet meer
+   de rest van het scherm.
+   ========================================================= */
+
+var VERSION = "3.6.0";
+var LAT = "52.3765", LON = "4.5330";
+var WEATHER_BASE =
+  "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
+  "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code," +
+  "wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,cloud_cover,is_day" +
+  "&hourly=temperature_2m,weather_code,precipitation_probability,precipitation,sunshine_duration," +
+  "cloud_cover,is_day,wind_speed_10m,wind_direction_10m" +
+  "&daily=uv_index_max,sunrise,sunset" +
+  "&timezone=Europe%2FAmsterdam&timeformat=unixtime&forecast_days=2&wind_speed_unit=kmh";
+
+var CONFIG = {
+  weatherUrl: WEATHER_BASE + "&models=knmi_seamless",
+  weatherFallbackUrl: WEATHER_BASE,
   marineUrl:
-    "https://marine-api.open-meteo.com/v1/marine" +
-    "?latitude=52.39&longitude=4.45" +
+    "https://marine-api.open-meteo.com/v1/marine?latitude=52.39&longitude=4.45" +
     "&current=wave_height,wave_direction,wave_period" +
-    "&hourly=sea_surface_temperature,sea_level_height_msl,wave_height,wave_direction,wave_period" +
-    "&timezone=Europe%2FAmsterdam&forecast_days=2",
-  beachPostsUrl:
-    "https://dashboard.strand-app.nl/api/beachposts/v1/overview?municipality=zandvoort",
+    "&hourly=sea_surface_temperature,sea_level_height_msl" +
+    "&timezone=Europe%2FAmsterdam&timeformat=unixtime&past_days=1&forecast_days=2",
+  beachPostsUrl: "https://dashboard.strand-app.nl/api/beachposts/v1/overview?municipality=zandvoort",
   refreshMs: 10 * 60 * 1000,
   retryMs: 60 * 1000,
   requestTimeoutMs: 12 * 1000,
   hardReloadMs: 6 * 60 * 60 * 1000,
-  cacheKey: "mangos-dashboard-350-cache",
-  dawnDuskWindowMs: 45 * 60 * 1000
+  cacheKey: "mangos-dashboard-360-cache",
+  canvasW: 1920,
+  canvasH: 1080
 };
 
-document.documentElement.dataset.motion = "on";
-const $ = (id) => document.getElementById(id);
-let refreshTimer = null;
-let beachFailureCount = 0;
-let beachNextAttemptAt = 0;
-let conditionFocusTimer = null;
-let conditionFocusIndex = 0;
-let forecastRange = null;
-
-/* Houdt de meest recente zon- en weerinfo bij zodat het dag/nacht-thema
-   ook tussen twee databeurten door kan bijwerken (elke klok-tick). */
-const sky = { sunrise: null, sunset: null, sunriseNext: null, weatherCode: null, theme: null, isNight: false };
-
-function stopConditionFocus() {
-  window.clearTimeout(conditionFocusTimer);
-  conditionFocusTimer = null;
-  document.querySelectorAll(".conditions-strip .condition-item.is-focus").forEach((item) => item.classList.remove("is-focus"));
+/* ---------- Helpers ---------- */
+function $(id) { return document.getElementById(id); }
+function get(obj, path, fallback) {
+  var cur = obj;
+  for (var i = 0; i < path.length; i++) {
+    if (cur === null || cur === undefined) return fallback;
+    cur = cur[path[i]];
+  }
+  return (cur === null || cur === undefined) ? fallback : cur;
+}
+function setText(id, value, fallback) {
+  var node = $(id);
+  if (!node) return;
+  node.textContent = (value === undefined || value === null || value === "") ? (fallback || "—") : value;
+}
+function num(value, decimals) {
+  var n = Number(value);
+  return isFinite(n) && value !== null && value !== "" ? n.toFixed(decimals || 0) : "—";
+}
+function pad(n) { return n < 10 ? "0" + n : String(n); }
+function hhmm(ms) {
+  if (!isFinite(ms)) return "--:--";
+  var d = new Date(ms);
+  return pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+function escapeHtml(value) {
+  return String(value === null || value === undefined ? "" : value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+function safe(label, fn) {
+  try { fn(); } catch (err) { if (window.console) console.error("[Mango's] " + label + " mislukt:", err); }
+}
+function toMs(unixArr) {
+  var out = [];
+  for (var i = 0; i < (unixArr || []).length; i++) out.push(Number(unixArr[i]) * 1000);
+  return out;
 }
 
-function scheduleConditionFocus(delay = 3000) {
-  window.clearTimeout(conditionFocusTimer);
-  conditionFocusTimer = window.setTimeout(() => {
-    if (document.documentElement.dataset.mode !== "tv") {
-      stopConditionFocus();
-      return;
+var DAYS = ["zondag", "maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag"];
+var MONTHS = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"];
+
+/* ---------- Modus + schalen ---------- */
+function getMode() {
+  var q = (window.location.search.match(/[?&]mode=([a-z]+)/i) || [])[1];
+  q = q ? q.toLowerCase() : "";
+  if (q === "mobile") return "mobile";
+  if (q === "tv" || q === "laptop" || q === "kiosk") return "tv";
+  return window.innerWidth < 760 ? "mobile" : "tv";
+}
+function fitStage() {
+  var mode = getMode();
+  document.documentElement.setAttribute("data-mode", mode);
+  var stage = $("stage");
+  if (!stage) return;
+  if (mode === "mobile") { stage.style.transform = ""; stage.style.left = ""; stage.style.top = ""; return; }
+  var w = window.innerWidth, h = window.innerHeight;
+  var s = Math.min(w / CONFIG.canvasW, h / CONFIG.canvasH);
+  stage.style.transform = "scale(" + s + ")";
+  stage.style.left = Math.max(0, (w - CONFIG.canvasW * s) / 2) + "px";
+  stage.style.top = Math.max(0, (h - CONFIG.canvasH * s) / 2) + "px";
+}
+
+/* ---------- Zon / thema ---------- */
+var sky = { sunrise: null, sunset: null, sunriseNext: null, sunsetNext: null, code: null, isNight: false };
+
+function isNightNow() {
+  var now = Date.now();
+  if (!sky.sunrise || !sky.sunset) { var h = new Date().getHours(); return h < 7 || h >= 21; }
+  return now < sky.sunrise || now > sky.sunset;
+}
+function applyTheme() {
+  var night = isNightNow();
+  document.documentElement.setAttribute("data-theme", night ? "night" : "day");
+  if (night !== sky.isNight) {
+    sky.isNight = night;
+    if (sky.code !== null) {
+      var info = weatherInfo(sky.code, night);
+      setText("weatherIcon", info[1]);
+      setText("condition", info[0]);
     }
-
-    const items = Array.from(document.querySelectorAll(".conditions-strip .condition-item"));
-    if (!items.length) return;
-
-    items.forEach((item) => item.classList.remove("is-focus"));
-    const item = items[conditionFocusIndex % items.length];
-    item.classList.add("is-focus");
-    conditionFocusIndex = (conditionFocusIndex + 1) % items.length;
-
-    // Rustig inzoomen (ca. 1 sec), daarna circa twee seconden volledig groot; vervolgens rustig uitzoomen en drie seconden rust voor het volgende item.
-    conditionFocusTimer = window.setTimeout(() => {
-      item.classList.remove("is-focus");
-      scheduleConditionFocus(3000);
-    }, 3000);
-  }, delay);
-}
-
-function syncConditionFocus() {
-  // Houd kiosk-schermen rustig: de oude zoomcarrousel kon waarden bedekken.
-  stopConditionFocus();
-  conditionFocusIndex = 0;
-}
-
-function setMode() {
-  const requested = (new URLSearchParams(window.location.search).get("mode") || "").toLowerCase();
-  let mode = requested;
-  if (!["tv", "laptop", "mobile", "web", "advice"].includes(mode)) {
-    if (window.innerWidth <= 700) mode = "mobile";
-    else if (window.innerWidth >= 1500 && window.innerHeight >= 800) mode = "tv";
-    else mode = "laptop";
   }
-  document.documentElement.dataset.mode = mode;
-  setText("modeName", mode.toUpperCase());
-  syncConditionFocus();
+  updateSun();
 }
-
-function setText(id, value, fallback = "—") {
-  const node = $(id);
-  if (node) node.textContent = value === undefined || value === null || value === "" ? fallback : value;
-}
-
-function numberText(value, decimals = 0) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number.toFixed(decimals) : "—";
-}
-
-function signedNumberText(value, decimals = 2) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return "—";
-  return `${number >= 0 ? "+" : ""}${number.toFixed(decimals)}`;
-}
-
-function formatClock(date) {
-  return date.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatApiTime(value) {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : formatClock(date);
-}
-
-/* ---------- Dag/nacht thema ---------- */
-
-function computeThemeState(sunriseIso, sunsetIso, now = Date.now()) {
-  const sunrise = sunriseIso ? new Date(sunriseIso).getTime() : null;
-  const sunset = sunsetIso ? new Date(sunsetIso).getTime() : null;
-  const w = CONFIG.dawnDuskWindowMs;
-
-  if (!Number.isFinite(sunrise) || !Number.isFinite(sunset)) {
-    // Geen zongegevens beschikbaar: ruwe schatting op basis van lokale klok.
-    const hour = new Date(now).getHours();
-    if (hour < 6 || hour >= 21) return { theme: "night", isNight: true };
-    if (hour < 8) return { theme: "dawn", isNight: false };
-    if (hour >= 19) return { theme: "dusk", isNight: false };
-    return { theme: "day", isNight: false };
+function updateSun() {
+  var now = Date.now();
+  if (sky.sunset && now < sky.sunset && (!sky.sunrise || now >= sky.sunrise)) {
+    setText("sunLabel", "Zonsondergang"); setText("sunIcon", "🌅");
+    setText("sunTime", hhmm(sky.sunset)); setText("sunSub", "vandaag");
+  } else {
+    var next = (sky.sunrise && now < sky.sunrise) ? sky.sunrise : sky.sunriseNext;
+    setText("sunLabel", "Zonsopgang"); setText("sunIcon", "🌄");
+    setText("sunTime", next ? hhmm(next) : "--:--");
+    setText("sunSub", (sky.sunrise && now < sky.sunrise) ? "vandaag" : "morgen");
   }
-
-  if (now < sunrise - w) return { theme: "night", isNight: true };
-  if (now < sunrise + w) return { theme: "dawn", isNight: false };
-  if (now < sunset - w) return { theme: "day", isNight: false };
-  if (now < sunset + w) return { theme: "dusk", isNight: false };
-  return { theme: "night", isNight: true };
 }
 
-function weatherInfo(code, isNight = false) {
-  const map = {
+function weatherInfo(code, night) {
+  var map = {
     0: ["Onbewolkt", "☀️"], 1: ["Vrij zonnig", "🌤️"], 2: ["Halfbewolkt", "⛅"], 3: ["Bewolkt", "☁️"],
     45: ["Mist", "🌫️"], 48: ["Rijpmist", "🌫️"], 51: ["Lichte motregen", "🌦️"], 53: ["Motregen", "🌦️"],
-    55: ["Stevige motregen", "🌧️"], 61: ["Lichte regen", "🌦️"], 63: ["Regen", "🌧️"], 65: ["Zware regen", "🌧️"],
+    55: ["Motregen", "🌧️"], 61: ["Lichte regen", "🌦️"], 63: ["Regen", "🌧️"], 65: ["Zware regen", "🌧️"],
     71: ["Lichte sneeuw", "🌨️"], 73: ["Sneeuw", "🌨️"], 75: ["Zware sneeuw", "❄️"],
     80: ["Lichte buien", "🌦️"], 81: ["Buien", "🌧️"], 82: ["Zware buien", "⛈️"],
     95: ["Onweer", "⛈️"], 96: ["Onweer met hagel", "⛈️"], 99: ["Zwaar onweer", "⛈️"]
   };
-  const [description, icon] = map[Number(code)] || ["Wisselend", "🌤️"];
-  if (isNight) {
-    if (Number(code) === 0) return ["Helder", "🌙"];
-    if (Number(code) === 1) return ["Licht bewolkt", "🌙"];
-    if (Number(code) === 2) return ["Halfbewolkt", "🌥️"];
+  var c = Number(code);
+  var r = map[c] || ["Wisselend", "🌤️"];
+  if (night) {
+    if (c === 0) return ["Helder", "🌙"];
+    if (c === 1) return ["Licht bewolkt", "🌙"];
   }
-  return [description, icon];
+  return r;
 }
 
-function applyTheme() {
-  const result = computeThemeState(sky.sunrise, sky.sunset);
-  if (result.theme !== sky.theme) {
-    document.documentElement.dataset.theme = result.theme;
-    sky.theme = result.theme;
-  }
-  if (result.isNight !== sky.isNight) {
-    sky.isNight = result.isNight;
-    if (sky.weatherCode !== null) {
-      const [description, icon] = weatherInfo(sky.weatherCode, sky.isNight);
-      setText("weatherIcon", icon);
-      setText("headerWeatherIcon", icon);
-      setText("condition", description);
-      setText("headerCondition", description);
-      setText("webWeatherIcon", icon);
-      setText("webCondition", description);
-    }
-    updateSunCard();
-  }
-}
-
-function updateSunCard() {
-  if (sky.isNight) {
-    setText("sunLabel", "Zonsopgang");
-    setText("sunIcon", "🌄", "🌄");
-    setText("sunset", sky.sunriseNext ? formatApiTime(sky.sunriseNext) : formatApiTime(sky.sunset));
-  } else {
-    setText("sunLabel", "Zonsondergang");
-    setText("sunIcon", "🌅", "🌅");
-    setText("sunset", formatApiTime(sky.sunset));
-  }
-}
-
+/* ---------- Klok ---------- */
 function updateClock() {
-  const now = new Date();
-  setText("clockTime", formatClock(now));
-  setText("clockDate", now.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" }));
+  var d = new Date();
+  setText("clockTime", pad(d.getHours()) + ":" + pad(d.getMinutes()));
+  setText("clockDate", DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()]);
+  safe("thema", applyTheme);
+  safe("nu-marker", updateNowMarker);
+}
+
+/* ---------- Wind ---------- */
+function compass(deg) {
+  var v = Number(deg);
+  if (!isFinite(v)) return "—";
+  var labels = ["N","NNO","NO","ONO","O","OZO","ZO","ZZO","Z","ZZW","ZW","WZW","W","WNW","NW","NNW"];
+  return labels[Math.round((((v % 360) + 360) % 360) / 22.5) % 16];
+}
+function beaufort(kmh) {
+  var v = Number(kmh);
+  if (!isFinite(v)) return "—";
+  var limits = [1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118];
+  for (var i = 0; i < limits.length; i++) if (v < limits[i]) return String(i);
+  return "12";
+}
+function setWindArrow(deg) {
+  var arrow = $("windArrow");
+  var v = Number(deg);
+  if (!arrow || !isFinite(v)) return;
+  // Pijl wijst waar de wind naartoe waait.
+  arrow.style.transform = "rotate(" + ((v + 180) % 360) + "deg)";
+}
+
+/* ---------- Fetch ---------- */
+function fetchJson(url) {
+  return new Promise(function (resolve, reject) {
+    var controller = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () {
+      if (controller) controller.abort();
+      reject(new Error("timeout"));
+    }, CONFIG.requestTimeoutMs);
+    var opts = { cache: "no-store", credentials: "omit" };
+    if (controller) opts.signal = controller.signal;
+    fetch(url, opts).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
+    }).then(function (json) { clearTimeout(timer); resolve(json); })
+      .catch(function (err) { clearTimeout(timer); reject(err); });
+  });
+}
+function settle(p) {
+  return p.then(function (v) { return { ok: true, value: v }; }, function (e) { return { ok: false, error: e }; });
+}
+function loadWeather() {
+  return fetchJson(CONFIG.weatherUrl).then(function (d) { d._source = "KNMI"; return d; }, function () {
+    return fetchJson(CONFIG.weatherFallbackUrl).then(function (d) { d._source = "MODEL"; return d; });
+  });
+}
+
+var beachFailures = 0, beachNextAttempt = 0;
+function loadBeachPosts() {
+  if (Date.now() < beachNextAttempt) return Promise.reject(new Error("backoff"));
+  return fetchJson(CONFIG.beachPostsUrl).then(function (data) {
+    if (!data || data.getstrandposten !== "success" || !(data.strandposten instanceof Array)) throw new Error("Ongeldige Strand App-response");
+    beachFailures = 0; beachNextAttempt = 0;
+    return data.strandposten;
+  }, function (err) {
+    beachFailures += 1;
+    beachNextAttempt = Date.now() + Math.min(60, 5 * Math.pow(2, beachFailures - 1)) * 60 * 1000;
+    throw err;
+  });
+}
+
+/* ---------- Weer nu ---------- */
+function renderNow(w) {
+  var cur = w.current || {};
+  var daily = w.daily || {};
+  var dSunrise = toMs(daily.sunrise), dSunset = toMs(daily.sunset);
+  sky.sunrise = dSunrise[0] || sky.sunrise; sky.sunset = dSunset[0] || sky.sunset;
+  sky.sunriseNext = dSunrise[1] || sky.sunriseNext; sky.sunsetNext = dSunset[1] || sky.sunsetNext;
+  sky.code = cur.weather_code !== undefined ? cur.weather_code : sky.code;
+  sky.isNight = isNightNow();
   applyTheme();
-  updateForecastNowMarker();
+
+  var info = weatherInfo(cur.weather_code, sky.isNight);
+  setText("weatherIcon", info[1]);
+  setText("condition", info[0]);
+  setText("temperature", num(cur.temperature_2m) + "°");
+  setText("feelsLike", num(cur.apparent_temperature) + "°");
+  setText("uvIndex", num(get(daily, ["uv_index_max", 0], null), 0));
+  setText("precipitation", num(cur.precipitation, 1) + " mm");
+  setText("humidity", num(cur.relative_humidity_2m) + "%");
+
+  setText("windBft", beaufort(cur.wind_speed_10m));
+  setText("windDir", compass(cur.wind_direction_10m));
+  setText("windKmh", num(cur.wind_speed_10m) + " km/u · stoten " + num(cur.wind_gusts_10m) + " km/u");
+  setWindArrow(cur.wind_direction_10m);
+  setText("forecastSource", (w._source === "MODEL" ? "WEERMODEL" : "KNMI") + " · 8 UUR");
 }
 
-function compassDirection(degrees) {
-  const value = Number(degrees);
-  if (!Number.isFinite(value)) return "—";
-  const labels = ["N","NNO","NO","ONO","O","OZO","ZO","ZZO","Z","ZZW","ZW","WZW","W","WNW","NW","NNW"];
-  return labels[Math.round((((value % 360) + 360) % 360) / 22.5) % 16];
-}
+/* ---------- Uurverwachting ---------- */
+var forecastRange = null;
 
-function setWindArrow(degrees) {
-  const arrow = $("windArrow");
-  if (!arrow) return;
-  const value = Number(degrees);
-  // De arrow wijst de richting op waar de wind naartoe waait (bron + 180°).
-  const rotation = Number.isFinite(value) ? (value + 180) % 360 : 0;
-  arrow.style.setProperty("--wind-deg", `${rotation}deg`);
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
-}
-
-async function fetchJson(url, timeoutMs = CONFIG.requestTimeoutMs) {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, { cache: "no-store", credentials: "omit", signal: controller.signal });
-    if (!response.ok) {
-      const error = new Error(`HTTP ${response.status}`);
-      error.status = response.status;
-      const retryAfter = response.headers.get("Retry-After");
-      if (retryAfter) {
-        const seconds = Number(retryAfter);
-        error.retryAfterMs = Number.isFinite(seconds) ? seconds * 1000 : Math.max(0, new Date(retryAfter).getTime() - Date.now());
-      }
-      throw error;
-    }
-    return response.json();
-  } finally {
-    window.clearTimeout(timeout);
-  }
-}
-
-function nearestHourlyIndex(hourly) {
-  if (!Array.isArray(hourly?.time)) return -1;
-  const now = Date.now();
-  let bestIndex = 0;
-  let distance = Infinity;
-  hourly.time.forEach((value, index) => {
-    const currentDistance = Math.abs(new Date(value).getTime() - now);
-    if (currentDistance < distance) { distance = currentDistance; bestIndex = index; }
-  });
-  return bestIndex;
-}
-
-function nearestHourlyValue(hourly, field) {
-  const index = nearestHourlyIndex(hourly);
-  return index >= 0 && Array.isArray(hourly?.[field]) ? hourly[field][index] : null;
-}
-
-function forecastIsNight(hourly, index) {
-  if (Array.isArray(hourly?.is_day) && hourly.is_day[index] !== undefined) {
-    return Number(hourly.is_day[index]) === 0;
-  }
-  const date = new Date(hourly?.time?.[index]);
-  if (Number.isNaN(date.getTime())) return sky.isNight;
-  const hour = date.getHours();
-  return hour < 7 || hour >= 21;
-}
-
-function forecastSkyColor(code, isNight, cloudCover = 50, timeValue = null) {
-  const c = Number(code);
-  const cloud = Number.isFinite(Number(cloudCover)) ? Number(cloudCover) : 50;
-  const time = timeValue ? new Date(timeValue) : null;
-  const sunset = sky.sunset ? new Date(sky.sunset) : null;
-  const nearSunset = time && sunset && Math.abs(time.getTime() - sunset.getTime()) <= 75 * 60 * 1000;
-
-  if (isNight) {
-    if ([61,63,65,80,81,82,95,96,99].includes(c)) return "#263340";
-    if (cloud >= 75) return "#263543";
-    return "#102c48";
-  }
-  if ([95,96,99].includes(c)) return "#525967";
-  if ([61,63,65,80,81,82,51,53,55].includes(c)) return "#667983";
-  if (nearSunset) return "#c97758";
-  if (cloud >= 88 || c === 3) return "#7b8790";
-  if (cloud >= 60 || c === 2) return "#739bad";
-  if (cloud >= 30 || c === 1) return "#55a0c7";
-  return "#2398d8";
-}
-
-function forecastBackground(hourly, indices) {
-  const stops = [];
-  indices.forEach((i, pos) => {
-    const color = forecastSkyColor(
-      hourly.weather_code?.[i],
-      forecastIsNight(hourly, i),
-      hourly.cloud_cover?.[i],
-      hourly.time?.[i]
-    );
-    const start = (pos / indices.length) * 100;
-    const end = ((pos + 1) / indices.length) * 100;
-    stops.push(`${color} ${start.toFixed(2)}%`, `${color} ${end.toFixed(2)}%`);
-  });
-  return `linear-gradient(90deg, ${stops.join(",")})`;
-}
-
-function updateForecastNowMarker() {
-  const marker = $("forecastNowMarker");
-  if (!marker || !forecastRange) return;
-  const now = Date.now();
-  const elapsedHours = (now - forecastRange.startMs) / 3600000;
-  const centerOffset = 0.5;
-  const position = ((elapsedHours + centerOffset) / forecastRange.count) * 100;
-  marker.style.left = `${Math.max(1.5, Math.min(98.5, position)).toFixed(2)}%`;
-}
-
-function forecastDetailMarkup(sunshineMinutes, rainChance, precipitation) {
-  const parts = [];
-  if (sunshineMinutes > 0) parts.push(`<span class="forecast-detail sun">☀ <b>${sunshineMinutes}</b>m</span>`);
-  if (rainChance >= 10) {
-    const amount = Number(precipitation);
-    const suffix = Number.isFinite(amount) && amount >= 0.2 ? ` · ${amount.toFixed(1)}mm` : "";
-    parts.push(`<span class="forecast-detail rain">🌧 <b>${rainChance}%</b>${suffix}</span>`);
-  }
-  if (!parts.length) parts.push(`<span class="forecast-detail dry">DROOG</span>`);
-  return parts.join("");
+function skyColor(code, night, cloud) {
+  var c = Number(code);
+  cloud = isFinite(Number(cloud)) ? Number(cloud) : 50;
+  if (night) return cloud >= 75 ? "#263543" : "#12304c";
+  if (c >= 95) return "#525967";
+  if ([51,53,55,61,63,65,80,81,82].indexOf(c) >= 0) return "#5f7580";
+  if (cloud >= 88 || c === 3) return "#6f8591";
+  if (cloud >= 60 || c === 2) return "#4f8fa6";
+  if (cloud >= 30 || c === 1) return "#2f94b8";
+  return "#1f8fc9";
 }
 
 function renderHourly(hourly) {
-  const container = $("hourlyForecast");
-  if (!container || !Array.isArray(hourly?.time)) return;
-
-  const now = new Date();
-  const startHour = new Date(now);
-  startHour.setMinutes(0, 0, 0);
-  let start = hourly.time.findIndex((value) => new Date(value) >= startHour);
+  var container = $("hourlyForecast");
+  if (!container || !hourly || !hourly.time) return;
+  var times = toMs(hourly.time);
+  var startHour = new Date(); startHour.setMinutes(0, 0, 0);
+  var start = -1;
+  for (var i = 0; i < times.length; i++) if (times[i] >= startHour.getTime()) { start = i; break; }
   if (start < 0) start = 0;
 
-  const indices = [];
-  for (let i = start; i < Math.min(start + 8, hourly.time.length); i += 1) indices.push(i);
-  if (!indices.length) return;
+  var html = [], stops = [];
+  var count = Math.min(8, times.length - start);
+  for (var k = 0; k < count; k++) {
+    var idx = start + k;
+    var night = hourly.is_day ? Number(hourly.is_day[idx]) === 0 : false;
+    var info = weatherInfo(get(hourly, ["weather_code", idx]), night);
+    var rain = Math.round(Number(get(hourly, ["precipitation_probability", idx], 0)) || 0);
+    var mm = Number(get(hourly, ["precipitation", idx], 0)) || 0;
+    var wind = get(hourly, ["wind_speed_10m", idx], null);
+    var windDir = get(hourly, ["wind_direction_10m", idx], null);
+    var chips = "";
+    if (rain >= 20) chips += '<span class="fc-chip rain">🌧 ' + rain + '%' + (mm >= 0.2 ? " · " + mm.toFixed(1) + "mm" : "") + "</span>";
+    chips += '<span class="fc-chip wind">' + beaufort(wind) + " Bft " + compass(windDir) + "</span>";
 
-  const cards = indices.map((i, pos) => {
-    const isNight = forecastIsNight(hourly, i);
-    const [, icon] = weatherInfo(hourly.weather_code?.[i], isNight);
-    const sunshineMinutes = Math.max(0, Math.min(60, Math.round(Number(hourly.sunshine_duration?.[i] || 0) / 60)));
-    const rainChance = Math.max(0, Math.min(100, Math.round(Number(hourly.precipitation_probability?.[i] || 0))));
-    const detail = forecastDetailMarkup(sunshineMinutes, rainChance, hourly.precipitation?.[i]);
-    const cloud = Math.max(0, Math.min(100, Math.round(Number(hourly.cloud_cover?.[i] || 0))));
-    const nowClass = pos === 0 ? " is-current-hour" : "";
-
-    return `<div class="hour${nowClass}" data-cloud="${cloud}">
-      <span class="time">${formatClock(new Date(hourly.time[i]))}</span>
-      <span class="icon">${icon}</span>
-      <strong class="degrees">${numberText(hourly.temperature_2m?.[i])}°</strong>
-      <span class="forecast-details">${detail}</span>
-    </div>`;
-  });
-
-  container.style.setProperty("--forecast-sky", forecastBackground(hourly, indices));
-  container.innerHTML = `
-    <div class="forecast-timeline" aria-hidden="true"></div>
-    <div id="forecastNowMarker" class="forecast-now-marker" aria-hidden="true"><span>NU</span></div>
-    ${cards.join("")}
-  `;
-
-  forecastRange = {
-    startMs: new Date(hourly.time[indices[0]]).getTime(),
-    count: indices.length
-  };
-  updateForecastNowMarker();
-}
-
-function renderTideSpark(times, levels, windowStart, windowEnd, nowIndex) {
-  const line = $("tideSparkLine");
-  const dot = $("tideSparkNow");
-  if (!line || !dot) return;
-  const slice = levels.slice(windowStart, windowEnd).map(Number).filter(Number.isFinite);
-  if (slice.length < 2) { line.setAttribute("points", ""); return; }
-
-  const min = Math.min(...slice);
-  const max = Math.max(...slice);
-  const span = Math.max(max - min, 0.05);
-  const count = windowEnd - windowStart;
-  const padY = 3;
-  const usableH = 34 - padY * 2;
-
-  const points = [];
-  for (let i = windowStart; i < windowEnd; i += 1) {
-    const value = Number(levels[i]);
-    const x = ((i - windowStart) / (count - 1)) * 120;
-    const y = Number.isFinite(value) ? padY + (1 - (value - min) / span) * usableH : 17;
-    points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    html.push(
+      '<div class="hour' + (k === 0 ? " is-now" : "") + '">' +
+        '<div class="hour-left"><span class="time">' + hhmm(times[idx]) + '</span><span class="icon">' + info[1] + "</span></div>" +
+        '<div class="hour-right"><strong class="degrees">' + num(get(hourly, ["temperature_2m", idx])) + '°</strong><span class="chips">' + chips + "</span></div>" +
+      "</div>"
+    );
+    var col = skyColor(get(hourly, ["weather_code", idx]), night, get(hourly, ["cloud_cover", idx]));
+    var a = (k / count * 100).toFixed(2), b = ((k + 1) / count * 100).toFixed(2);
+    stops.push(col + " " + a + "%", col + " " + b + "%");
   }
-  line.setAttribute("points", points.join(" "));
-
-  const relativeNow = Math.min(Math.max(nowIndex - windowStart, 0), count - 1);
-  const nowValue = Number(levels[windowStart + relativeNow]);
-  const nowX = (relativeNow / (count - 1)) * 120;
-  const nowY = Number.isFinite(nowValue) ? padY + (1 - (nowValue - min) / span) * usableH : 17;
-  dot.setAttribute("cx", nowX.toFixed(1));
-  dot.setAttribute("cy", nowY.toFixed(1));
+  if (!count) return;
+  container.style.background = "linear-gradient(90deg," + stops.join(",") + ")";
+  container.innerHTML = '<div id="nowMarker" class="now-marker"><span>NU</span></div>' + html.join("");
+  forecastRange = { start: times[start], count: count };
+  updateNowMarker();
+}
+function updateNowMarker() {
+  var m = $("nowMarker");
+  if (!m || !forecastRange) return;
+  var pos = ((Date.now() - forecastRange.start) / 3600000) / forecastRange.count * 100;
+  m.style.left = Math.max(0.3, Math.min(99.5, pos)).toFixed(2) + "%";
 }
 
+/* ---------- Getij ----------
+   Nieuw in 3.6: eerst hoog- en laagwater bepalen (met parabolische interpolatie
+   en filtering van kleine rimpels), daarna pas de status. Daardoor kunnen
+   "opkomend/afgaand" en de getoonde eb/vloed-tijden elkaar niet meer tegenspreken. */
+function findExtremes(t, v) {
+  var ext = [];
+  for (var i = 1; i < v.length - 1; i++) {
+    var a = v[i - 1], b = v[i], c = v[i + 1];
+    if (!isFinite(a) || !isFinite(b) || !isFinite(c)) continue;
+    var isHigh = b >= a && b > c, isLow = b <= a && b < c;
+    if (!isHigh && !isLow) continue;
+    var denom = a - 2 * b + c;
+    var off = denom !== 0 ? 0.5 * (a - c) / denom : 0;
+    if (off > 0.5) off = 0.5; if (off < -0.5) off = -0.5;
+    var step = t[i + 1] - t[i];
+    ext.push({ type: isHigh ? "high" : "low", t: t[i] + off * step, v: b - 0.25 * (a - c) * off });
+  }
+  // Rimpels (<20 cm verschil) weghalen; herhalen tot stabiel.
+  var changed = true;
+  while (changed) {
+    changed = false;
+    for (var j = 0; j < ext.length - 1; j++) {
+      if (ext[j].type === ext[j + 1].type) {
+        var keep = ext[j].type === "high" ? (ext[j].v >= ext[j + 1].v ? j : j + 1) : (ext[j].v <= ext[j + 1].v ? j : j + 1);
+        ext.splice(keep === j ? j + 1 : j, 1); changed = true; break;
+      }
+      if (Math.abs(ext[j].v - ext[j + 1].v) < 0.2) { ext.splice(j, 2); changed = true; break; }
+    }
+  }
+  return ext;
+}
+function interp(t, v, at) {
+  for (var i = 0; i < t.length - 1; i++) {
+    if (at >= t[i] && at <= t[i + 1]) {
+      var f = (at - t[i]) / (t[i + 1] - t[i]);
+      return v[i] + (v[i + 1] - v[i]) * f;
+    }
+  }
+  return NaN;
+}
 function renderTide(hourly) {
-  const times = hourly?.time;
-  const levels = hourly?.sea_level_height_msl;
-  if (!Array.isArray(times) || !Array.isArray(levels) || times.length < 4) {
-    setText("tideState", "Model tijdelijk niet beschikbaar");
-    setText("tideHeight", "Stand -- m");
-    setText("nextHighTide", "--:--");
-    setText("nextLowTide", "--:--");
-    const line = $("tideSparkLine");
-    if (line) line.setAttribute("points", "");
+  var t = toMs(hourly && hourly.time);
+  var raw = (hourly && hourly.sea_level_height_msl) || [];
+  var v = [];
+  for (var i = 0; i < raw.length; i++) v.push(raw[i] === null ? NaN : Number(raw[i]));
+  if (t.length < 6 || v.length !== t.length) {
+    setText("tideState", "Getij niet beschikbaar");
+    setText("nextHighTide", "--:--"); setText("nextLowTide", "--:--");
+    $("tideSparkLine").setAttribute("points", "");
     return;
   }
-
-  const now = Date.now();
-  let nearest = nearestHourlyIndex(hourly);
-  nearest = Math.max(1, Math.min(nearest, levels.length - 2));
-  const current = Number(levels[nearest]);
-  const previous = Number(levels[nearest - 1]);
-  const next = Number(levels[nearest + 1]);
-  const delta = next - previous;
-  const state = delta > 0.025 ? "Opkomend water" : delta < -0.025 ? "Afgaand water" : "Kentering rond hoog/laag water";
-
-  let nextHigh = null;
-  let nextLow = null;
-  for (let i = Math.max(1, nearest); i < levels.length - 1; i += 1) {
-    const time = new Date(times[i]).getTime();
-    if (time < now - 60 * 60 * 1000) continue;
-    const a = Number(levels[i - 1]);
-    const b = Number(levels[i]);
-    const c = Number(levels[i + 1]);
-    if (!nextHigh && b >= a && b > c) nextHigh = new Date(times[i]);
-    if (!nextLow && b <= a && b < c) nextLow = new Date(times[i]);
-    if (nextHigh && nextLow) break;
+  var now = Date.now();
+  var ext = findExtremes(t, v);
+  var prev = null, nextHigh = null, nextLow = null, next = null;
+  for (var k = 0; k < ext.length; k++) {
+    if (ext[k].t <= now) prev = ext[k];
+    else {
+      if (!next) next = ext[k];
+      if (!nextHigh && ext[k].type === "high") nextHigh = ext[k];
+      if (!nextLow && ext[k].type === "low") nextLow = ext[k];
+    }
   }
-
+  var state;
+  var near = function (e) { return e && Math.abs(e.t - now) <= 30 * 60 * 1000; };
+  if (near(prev) || near(next)) {
+    var e = near(prev) ? prev : next;
+    state = e.type === "high" ? "Hoogwater" : "Laagwater";
+  } else if (next) {
+    state = next.type === "high" ? "Opkomend water" : "Afgaand water";
+  } else if (prev) {
+    state = prev.type === "low" ? "Opkomend water" : "Afgaand water";
+  } else {
+    state = "Getij onbekend";
+  }
   setText("tideState", state);
-  setText("tideHeight", `Stand ${signedNumberText(current, 2)} m`);
-  setText("nextHighTide", nextHigh ? formatClock(nextHigh) : "--:--");
-  setText("nextLowTide", nextLow ? formatClock(nextLow) : "--:--");
+  setText("nextHighTide", nextHigh ? hhmm(nextHigh.t) : "--:--");
+  setText("nextLowTide", nextLow ? hhmm(nextLow.t) : "--:--");
 
-  const windowStart = Math.max(0, nearest - 8);
-  const windowEnd = Math.min(levels.length, windowStart + 24);
-  renderTideSpark(times, levels, windowStart, windowEnd, nearest);
+  // Sparkline: 6 uur terug t/m 18 uur vooruit.
+  var from = now - 6 * 3600000, to = now + 18 * 3600000;
+  var pts = [], vals = [];
+  for (var j = 0; j < t.length; j++) if (t[j] >= from - 3600000 && t[j] <= to + 3600000 && isFinite(v[j])) vals.push(v[j]);
+  if (vals.length < 2) return;
+  var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+  var span = Math.max(max - min, 0.1);
+  var W = 240, H = 80, P = 8;
+  function y(val) { return P + (1 - (val - min) / span) * (H - 2 * P); }
+  function x(ms) { return (ms - from) / (to - from) * W; }
+  for (var n = 0; n < t.length; n++) {
+    if (t[n] < from - 3600000 || t[n] > to + 3600000 || !isFinite(v[n])) continue;
+    pts.push(x(t[n]).toFixed(1) + "," + y(v[n]).toFixed(1));
+  }
+  $("tideSparkLine").setAttribute("points", pts.join(" "));
+  var cur = interp(t, v, now);
+  var nx = x(now).toFixed(1);
+  $("tideNowLine").setAttribute("x1", nx); $("tideNowLine").setAttribute("x2", nx);
+  $("tideSparkNow").setAttribute("cx", nx);
+  $("tideSparkNow").setAttribute("cy", isFinite(cur) ? y(cur).toFixed(1) : H / 2);
 }
 
+/* ---------- Zee ---------- */
+function nearestIndex(t) {
+  var now = Date.now(), best = -1, dist = Infinity;
+  for (var i = 0; i < t.length; i++) { var d = Math.abs(t[i] - now); if (d < dist) { dist = d; best = i; } }
+  return best;
+}
+function renderMarine(m) {
+  var cur = m.current || {};
+  var hourly = m.hourly || {};
+  setText("waveHeight", num(cur.wave_height, 1) + " m");
+  setText("waveDirection", "uit " + compass(cur.wave_direction));
+  setText("wavePeriod", num(cur.wave_period, 1) + " s");
+  var idx = nearestIndex(toMs(hourly.time));
+  setText("waterTemperature", num(get(hourly, ["sea_surface_temperature", idx], null), 1) + "°");
+  renderTide(hourly);
+}
+
+/* ---------- Reddingsbrigade ---------- */
 function findPost(posts, terms) {
-  return posts.find((post) => {
-    const name = String(post?.name || "").toLowerCase();
-    return terms.some((term) => name.includes(term));
-  });
-}
-
-function rescueSeverity(post, active) {
-  const text = [
-    post?.flag_text,
-    post?.flag_extended_text,
-    post?.state_text,
-    post?.state
-  ].filter(Boolean).join(" ").toLowerCase();
-
-  if (
-    text.includes("verboden") ||
-    text.includes("niet zwemmen") ||
-    text.includes("zeer gevaarlijk") ||
-    text.includes("rode vlag") ||
-    text.includes("red flag")
-  ) {
-    return "danger";
+  for (var i = 0; i < posts.length; i++) {
+    var name = String((posts[i] && posts[i].name) || "").toLowerCase();
+    for (var j = 0; j < terms.length; j++) if (name.indexOf(terms[j]) >= 0) return posts[i];
   }
-
-  if (
-    post?.flag_status === true ||
-    text.includes("waarschuwing") ||
-    text.includes("gevaarlijk") ||
-    text.includes("gele vlag") ||
-    text.includes("oranje vlag") ||
-    text.includes("warning")
-  ) {
-    return "warning";
-  }
-
-  return active ? "guarded" : "off";
+  return null;
 }
-
-function rescueIcon(severity, active) {
-  if (severity === "danger") return "⛔";
-  if (severity === "warning") return "⚠";
-  if (active) return "🛟";
-  return "❌";
+function severity(post) {
+  var text = [post.flag_text, post.flag_extended_text, post.state_text, post.state].join(" ").toLowerCase();
+  if (/verboden|niet zwemmen|zeer gevaarlijk|rode vlag|red flag/.test(text)) return "danger";
+  if (post.flag_status === true || /waarschuwing|gevaarlijk|gele vlag|oranje vlag|warning/.test(text)) return "warning";
+  return "clear";
 }
-
-function compactFlagText(post) {
-  const text = String(post?.flag_text || "").trim();
-
-  if (!text) {
-    return post?.flag_status ? "Waarschuwing actief" : "Geen actieve waarschuwing";
-  }
-
-  return text
-    .replace(/^let op[!:\s-]*/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function renderFlag(post, severity) {
-  if (!post?.flag_status) {
-    return `
-      <div class="safety-message safety-message-clear">
-        <span class="safety-mini-icon">✓</span>
-        <div><strong>Geen actieve waarschuwing</strong></div>
-      </div>
-    `;
-  }
-
-  const image = post.flag_img_no_text || post.flag_img || "";
-  const text = compactFlagText(post);
-  const extended = post.flag_extended_text || "";
-
-  return `
-    <div class="safety-message safety-message-${severity}">
-      ${
-        image
-          ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(text)}">`
-          : `<span class="safety-mini-icon">${severity === "danger" ? "⛔" : "⚠"}</span>`
-      }
-      <div>
-        <strong>${escapeHtml(text)}</strong>
-        ${extended ? `<span>${escapeHtml(extended)}</span>` : ""}
-      </div>
-    </div>
-  `;
-}
-
-function renderRescuePost(post, label) {
+function renderPost(post, label, unavailable) {
   if (!post) {
-    return `
-      <article class="rescue-post safety-unknown compact-rescue-post">
-        <div class="rescue-copy">
-          <div class="rescue-post-top">
-            <h3>${escapeHtml(label)}</h3>
-            <div class="lifeguard-status status-unknown"><span class="status-light"></span> STATUS ONBEKEND</div>
-          </div>
-          <div class="safety-message safety-message-clear">
-            <span class="safety-mini-icon">?</span>
-            <div><strong>Controleer ter plaatse</strong></div>
-          </div>
-        </div>
-      </article>
-    `;
+    return '<div class="post"><div class="post-top"><h3>' + label + '</h3><span class="post-status">STATUS ONBEKEND</span></div>' +
+      '<div class="post-flag"><span class="flag-icon">?</span><div>' +
+      (unavailable ? "Geen live verbinding met Strand App" : "Post niet gevonden") +
+      '<span class="ext">Let op de vlaggen bij de strandpost</span></div></div></div>';
   }
-
-  const active = post.state_status === true;
-  const severity = rescueSeverity(post, active);
-  const statusText = active ? "LIFEGUARD ON DUTY" : "❌ NO LIFEGUARD";
-  const alertSymbol = severity === "danger"
-    ? `<div class="rescue-alert-symbol"><span>⛔</span><strong>NIET ZWEMMEN</strong></div>`
-    : severity === "warning"
-      ? `<div class="rescue-alert-symbol"><span>⚠</span><strong>WAARSCHUWING</strong></div>`
-      : "";
-
-  return `
-    <article class="rescue-post safety-${severity} compact-rescue-post${alertSymbol ? " has-alert" : ""}">
-      <div class="rescue-copy">
-        <div class="rescue-post-top">
-          <h3>${escapeHtml(label)}</h3>
-          <div class="lifeguard-status status-${active ? "guarded" : "off"}">
-            <span class="status-light ${active ? "on" : "off"}"></span>${statusText}
-          </div>
-        </div>
-        ${renderFlag(post, severity)}
-      </div>
-      ${alertSymbol}
-    </article>
-  `;
+  var active = post.state_status === true;
+  var sev = severity(post);
+  var flag;
+  if (!post.flag_status) {
+    flag = '<span class="flag-icon">✓</span><div>Geen actieve waarschuwing</div>';
+  } else {
+    var img = post.flag_img_no_text || post.flag_img || "";
+    var text = String(post.flag_text || "Waarschuwing actief").replace(/^let op[!:\s-]*/i, "").replace(/\s+/g, " ");
+    flag = (img ? '<img src="' + escapeHtml(img) + '" alt="">' : '<span class="flag-icon">' + (sev === "danger" ? "⛔" : "⚠") + "</span>") +
+      "<div>" + escapeHtml(text) + (post.flag_extended_text ? '<span class="ext">' + escapeHtml(post.flag_extended_text) + "</span>" : "") + "</div>";
+  }
+  return '<div class="post ' + sev + '"><div class="post-top"><h3>' + label + "</h3>" +
+    '<span class="post-status ' + (active ? "on" : "off") + '">' + (active ? "BEWAAKT" : "NIET BEWAAKT") + "</span></div>" +
+    '<div class="post-flag">' + flag + "</div></div>";
+}
+function renderRescue(posts, unavailable) {
+  var list = posts instanceof Array ? posts : [];
+  var north = findPost(list, ["zvt noord", "zandvoort noord"]) || findPost(list, ["noord"]);
+  var south = findPost(list, ["zvt zuid", "zandvoort zuid"]) || findPost(list, ["zuid"]);
+  $("rescuePosts").innerHTML = renderPost(north, "▲ NOORD", unavailable) + renderPost(south, "▼ ZUID", unavailable);
 }
 
-function renderRescuePosts(posts) {
-  const container = $("rescuePosts");
-  if (!container) return;
-
-  const north =
-    findPost(posts, ["zvt noord", "zandvoort noord"]) ||
-    findPost(posts, ["noord"]);
-
-  const south =
-    findPost(posts, ["zvt zuid", "zandvoort zuid"]) ||
-    findPost(posts, ["zuid"]);
-
-  container.innerHTML =
-    renderRescuePost(north, "▲ NOORD") +
-    renderRescuePost(south, "▼ ZUID");
+/* ---------- Strandadvies ---------- */
+function buildAdvice(w) {
+  var cur = (w && w.current) || {};
+  var t = Number(cur.temperature_2m), wind = Number(cur.wind_speed_10m), gusts = Number(cur.wind_gusts_10m);
+  var code = Number(cur.weather_code), hour = new Date().getHours();
+  var lines;
+  if (code >= 95) lines = ["Onweer boven zee. Zoek een veilige plek binnen.", "Bliksem aan de kust: volg de aanwijzingen ter plaatse."];
+  else if ([61,63,65,80,81,82].indexOf(code) >= 0) lines = ["Tropische bui aan zee. Binnen blijft de sfeer zonnig.", "Regen op het zand, warme Latin sfeer binnen.", "Buien boven playa Zandvoort. Neem je tijd."];
+  else if (wind >= 35 || gusts >= 50) lines = ["Stevige zeewind. Houd losse spullen goed vast.", "Wind in je haar, uitzicht op zee."];
+  else if (sky.isNight || hour >= 20) lines = ["De zon zakt, la noche begint.", "Avond aan zee. Sin prisa, geen haast."];
+  else if (t >= 23) lines = ["Sol, playa, Zandvoort. SPF niet vergeten.", "Strandweer met hoofdletters. Zoek ook de schaduw op.", "Dit is waarom Mango's aan zee zit."];
+  else if (t < 16) lines = ["Fris aan zee. De tropische sfeer blijft warm.", "Trui aan, uitzicht aan. Buena idea."];
+  else if ([0,1,2].indexOf(code) >= 0) lines = ["Genoeg zon voor la terraza. De rest regelen wij.", "Golven aan. Modo vacaciones aan.", "Zeezicht inbegrepen. Buen humor aanbevolen."];
+  else lines = ["De zon doet rustig aan. Mango's houdt de kleur erin.", "Geen perfect strandweer nodig voor een fijne stranddag.", "Zand onder je voeten. Caribe aan de kust."];
+  return lines[Math.floor(Date.now() / 3600000) % lines.length];
 }
 
-function buildAdvice(weather, marine, uv) {
-  const temperature = Number(weather.temperature_2m);
-  const wind = Number(weather.wind_speed_10m);
-  const gusts = Number(weather.wind_gusts_10m);
-  const code = Number(weather.weather_code);
-  const hour = new Date().getHours();
-  let lines;
+/* ---------- Cache ---------- */
+function saveCache(data) { try { localStorage.setItem(CONFIG.cacheKey, JSON.stringify({ at: Date.now(), data: data })); } catch (e) {} }
+function loadCache() { try { var c = JSON.parse(localStorage.getItem(CONFIG.cacheKey) || "null"); return c ? c.data : null; } catch (e) { return null; } }
 
-  if (code >= 95) lines = [
-    "Onweer boven zee. Zoek een veilige plek binnen.",
-    "Bliksem aan de kust: volg altijd de aanwijzingen ter plaatse."
-  ];
-  else if ([61,63,65,80,81,82].includes(code)) lines = [
-    "Tropische bui aan zee. Binnen blijft de sfeer zonnig.",
-    "Regen op het zand, warme Latin sfeer binnen.",
-    "Buien boven playa Zandvoort. Neem je tijd."
-  ];
-  else if (wind >= 35 || gusts >= 50) lines = [
-    "Stevige zeewind. Houd losse spullen goed vast.",
-    "Wind in je haar, uitzicht op zee."
-  ];
-  else if (sky.isNight || hour >= 20) lines = [
-    "De zon zakt, la noche begint.",
-    "Avond aan zee. Sin prisa, geen haast."
-  ];
-  else if (temperature >= 23) lines = [
-    "Sol, playa, Zandvoort. SPF niet vergeten.",
-    "Strandweer met hoofdletters. Zoek ook de schaduw op.",
-    "Dit is waarom Mango's aan zee zit."
-  ];
-  else if (temperature < 16) lines = [
-    "Fris aan zee. De tropische sfeer blijft warm.",
-    "Trui aan, uitzicht aan. Buena idea."
-  ];
-  else if ([0,1,2].includes(code)) lines = [
-    "Genoeg zon voor la terraza. De rest regelen wij.",
-    "Golven aan. Modo vacaciones aan.",
-    "Zeezicht inbegrepen. Buen humor aanbevolen."
-  ];
-  else lines = [
-    "De zon doet rustig aan. Mango's houdt de kleur erin.",
-    "Geen perfect strandweer nodig voor een fijne stranddag.",
-    "Zand onder je voeten. Caribe aan de kust."
-  ];
-
-  const slot = Math.floor(Date.now() / (60 * 60 * 1000));
-  return lines[Math.abs(slot) % lines.length];
-}
 function setConnection(online, text) {
-  const wrapper = $("connectionState");
-  if (wrapper) wrapper.classList.toggle("online", online);
+  var el = $("connectionState");
+  if (el) el.className = "connection" + (online ? " online" : "");
   setText("connectionText", text);
 }
 
-function renderSafely(label, action, fallback) {
-  try {
-    action();
-    return true;
-  } catch (error) {
-    if (fallback) fallback(error);
-    console.error("Mango's 3.5.0 · " + label, error);
-    return false;
-  }
-}
+/* ---------- Hoofdlus ---------- */
+var refreshTimer = null;
+function scheduleLoad(ms) { clearTimeout(refreshTimer); refreshTimer = setTimeout(loadDashboard, ms); }
 
-function saveCache(data) {
-  try { localStorage.setItem(CONFIG.cacheKey, JSON.stringify({ savedAt: Date.now(), data })); } catch (_) { /* opslag niet beschikbaar */ }
-}
+function loadDashboard() {
+  setConnection(false, "Gegevens verversen…");
+  Promise.all([settle(loadWeather()), settle(fetchJson(CONFIG.marineUrl)), settle(loadBeachPosts())]).then(function (r) {
+    var cache = loadCache() || {};
+    var weather = r[0].ok ? r[0].value : cache.weather;
+    var marine = r[1].ok ? r[1].value : cache.marine;
+    var posts = r[2].ok ? r[2].value : cache.posts;
 
-function loadCache() {
-  try { return JSON.parse(localStorage.getItem(CONFIG.cacheKey) || "null")?.data || null; } catch (_) { return null; }
-}
-
-
-function updateWebGuardStatus(posts) {
-  const north = findPost(posts, ["zvt noord", "zandvoort noord", "noord"]);
-  const south = findPost(posts, ["zvt zuid", "zandvoort zuid", "zuid"]);
-  const available = [north, south].filter(Boolean);
-  const guarded = available.filter((post) => post.state_status === true).length;
-  const node = $("webGuardStatus");
-  if (!node) return;
-
-  node.classList.remove("is-guarded", "is-off", "is-unknown");
-  if (!available.length) {
-    node.textContent = "Status onbekend";
-    node.classList.add("is-unknown");
-  } else if (guarded === available.length) {
-    node.textContent = "🛟 Lifeguard on duty";
-    node.classList.add("is-guarded");
-  } else if (guarded > 0) {
-    node.textContent = "⚠️ Limited lifeguard coverage";
-    node.classList.add("is-guarded");
-  } else {
-    node.textContent = "❌ No lifeguard";
-    node.classList.add("is-off");
-  }
-}
-
-function applyData(weatherData, marineData, posts, fromCache = false) {
-  const current = weatherData?.current || {};
-  const daily = weatherData?.daily || {};
-  const marine = marineData?.current || {};
-  const marineHourly = marineData?.hourly || {};
-  const uv = daily.uv_index_max?.[0];
-  setText("forecastSource", `${weatherData?._cosmicoSource === "BEST MATCH" ? "WEERMODEL" : "KNMI"} · 8 UUR`);
-
-  sky.sunrise = daily.sunrise?.[0] || sky.sunrise;
-  sky.sunset = daily.sunset?.[0] || sky.sunset;
-  sky.sunriseNext = daily.sunrise?.[1] || sky.sunriseNext;
-  sky.weatherCode = current.weather_code ?? sky.weatherCode;
-  applyTheme();
-  updateSunCard();
-
-  const [description, icon] = weatherInfo(current.weather_code, sky.isNight);
-
-  setText("weatherIcon", icon);
-  setText("headerWeatherIcon", icon);
-  setText("temperature", `${numberText(current.temperature_2m)}°`);
-  setText("headerTemperature", `${numberText(current.temperature_2m)}°`);
-  setText("condition", description);
-  setText("headerCondition", description);
-  setText("webWeatherIcon", icon);
-  setText("webTemperature", `${numberText(current.temperature_2m)}°`);
-  setText("webCondition", description);
-  setText("feelsLike", `${numberText(current.apparent_temperature)}°C`);
-  setText("wind", `${numberText(current.wind_speed_10m)} km/u ${compassDirection(current.wind_direction_10m)}`);
-  setText("webWind", `${numberText(current.wind_speed_10m)} km/u ${compassDirection(current.wind_direction_10m)}`);
-  setWindArrow(current.wind_direction_10m);
-  setText("windGusts", `${numberText(current.wind_gusts_10m)} km/u`);
-  setText("uvIndex", numberText(uv, 1));
-  setText("precipitation", `${numberText(current.precipitation, 1)} mm`);
-
-  const visibilityValue = Number(current.visibility);
-  const visibilityUnit = String(weatherData?.current_units?.visibility || "m").toLowerCase();
-  const visibilityKm = visibilityUnit === "km" ? visibilityValue : visibilityValue / 1000;
-  setText("visibility", Number.isFinite(visibilityKm) ? `${visibilityKm.toFixed(0)} km` : "—");
-  setText("humidity", `${numberText(current.relative_humidity_2m)}%`);
-
-  setText("waveHeight", `${numberText(marine.wave_height, 1)} m`);
-  setText("webWaveHeight", `${numberText(marine.wave_height, 1)} m`);
-  setText("waveDirection", compassDirection(marine.wave_direction));
-  setText("wavePeriod", `${numberText(marine.wave_period, 1)} sec`);
-  setText("waterTemperature", `${numberText(nearestHourlyValue(marineHourly, "sea_surface_temperature"), 1)}°C`);
-  setText("webWaterTemperature", `${numberText(nearestHourlyValue(marineHourly, "sea_surface_temperature"), 1)}°C`);
-  renderSafely("getijden", () => renderTide(marineHourly), () => {
-    setText("tideState", "Model tijdelijk niet beschikbaar");
-    setText("tideHeight", "Stand -- m");
-  });
-
-  renderSafely("8-uursverwachting", () => {
-    if (!weatherData?.hourly) throw new Error("Geen uurgegevens");
-    renderHourly(weatherData.hourly);
-  }, () => {
-    const forecast = $("hourlyForecast");
-    if (forecast) forecast.innerHTML = '<div class="loading-copy">8-uursverwachting tijdelijk niet beschikbaar</div>';
-    setText("forecastSource", "LATER OPNIEUW");
-  });
-
-  renderSafely("reddingsbrigade", () => {
-    renderRescuePosts(Array.isArray(posts) ? posts : []);
-    updateWebGuardStatus(Array.isArray(posts) ? posts : []);
-  }, () => renderRescuePosts([]));
-
-  renderSafely("strandadvies", () => {
-    const advice = buildAdvice(current, marine, uv);
-    setText("beachAdvice", advice);
-    setText("webAdvice", advice);
-  }, () => setText("beachAdvice", "Geniet van la playa en volg altijd de aanwijzingen ter plaatse."));
-  setConnection(!fromCache, fromCache ? "Laatste opgeslagen gegevens" : `Bijgewerkt ${formatClock(new Date())}`);
-}
-
-async function loadWeatherData() {
-  try {
-    const data = await fetchJson(CONFIG.weatherUrl);
-    data._cosmicoSource = "KNMI";
-    return data;
-  } catch (primaryError) {
-    const fallback = await fetchJson(CONFIG.weatherFallbackUrl);
-    fallback._cosmicoSource = "BEST MATCH";
-    return fallback;
-  }
-}
-
-async function loadBeachPosts() {
-  if (Date.now() < beachNextAttemptAt) {
-    const error = new Error("Strand App tijdelijk overgeslagen tijdens back-off");
-    error.skipped = true;
-    throw error;
-  }
-  try {
-    const data = await fetchJson(CONFIG.beachPostsUrl);
-    if (data?.getstrandposten !== "success" || !Array.isArray(data.strandposten)) throw new Error("Ongeldige Strand App-response");
-    beachFailureCount = 0;
-    beachNextAttemptAt = 0;
-    return data.strandposten;
-  } catch (error) {
-    beachFailureCount += 1;
-    const backoffMinutes = Math.min(60, 5 * (2 ** Math.max(0, beachFailureCount - 1)));
-    const backoffMs = Number.isFinite(error.retryAfterMs) && error.retryAfterMs > 0 ? error.retryAfterMs : backoffMinutes * 60 * 1000;
-    beachNextAttemptAt = Date.now() + backoffMs;
-    throw error;
-  }
-}
-
-function scheduleLoad(delay) {
-  window.clearTimeout(refreshTimer);
-  refreshTimer = window.setTimeout(loadDashboard, delay);
-}
-
-async function loadDashboard() {
-  setConnection(false, "Gegevens laden…");
-  const results = await Promise.allSettled([loadWeatherData(), fetchJson(CONFIG.marineUrl), loadBeachPosts()]);
-  const weatherData = results[0].status === "fulfilled" ? results[0].value : null;
-  const marineData = results[1].status === "fulfilled" ? results[1].value : null;
-  const posts = results[2].status === "fulfilled" ? results[2].value : null;
-  const loaded = [weatherData, marineData, posts].filter(Boolean).length;
-
-  if (weatherData || marineData || posts) {
-    const cache = loadCache() || {};
-    const combined = {
-      weatherData: weatherData || cache.weatherData,
-      marineData: marineData || cache.marineData,
-      posts: posts || cache.posts || []
-    };
-    applyData(combined.weatherData, combined.marineData, combined.posts, loaded < 3);
-    saveCache(combined);
-    scheduleLoad((weatherData || marineData) ? CONFIG.refreshMs : CONFIG.retryMs);
-  } else {
-    const cache = loadCache();
-    if (cache) applyData(cache.weatherData, cache.marineData, cache.posts, true);
-    else {
-      setConnection(false, "Live gegevens niet beschikbaar");
-      const fallbackAdvice = "De live gegevens konden niet worden opgehaald. Volg de officiële informatie en aanwijzingen ter plaatse.";
-      setText("beachAdvice", fallbackAdvice);
-      setText("webAdvice", fallbackAdvice);
-      renderRescuePosts([]);
-      renderTide(null);
+    if (weather) {
+      safe("weer nu", function () { renderNow(weather); });
+      safe("uurverwachting", function () { renderHourly(weather.hourly); });
+    } else {
+      safe("uurverwachting leeg", function () { $("hourlyForecast").innerHTML = '<div class="placeholder">Verwachting tijdelijk niet beschikbaar</div>'; });
     }
+    if (marine) safe("zee", function () { renderMarine(marine); });
+    else safe("getij leeg", function () { renderTide(null); });
+    safe("reddingsbrigade", function () { renderRescue(posts, !r[2].ok && !posts); });
+    safe("advies", function () { setText("beachAdvice", buildAdvice(weather)); });
+
+    saveCache({ weather: weather, marine: marine, posts: posts });
+    var live = [r[0].ok, r[1].ok, r[2].ok];
+    var okCount = live.filter(Boolean).length;
+    if (okCount === 3) setConnection(true, "Live · bijgewerkt " + hhmm(Date.now()));
+    else if (okCount > 0) setConnection(true, "Deels live · " + hhmm(Date.now()) + (r[2].ok ? "" : " · Strand App offline"));
+    else setConnection(false, weather ? "Offline · laatst bekende gegevens" : "Geen verbinding");
+
+    scheduleLoad(r[0].ok || r[1].ok ? CONFIG.refreshMs : CONFIG.retryMs);
+  }).catch(function (err) {
+    if (window.console) console.error("[Mango's] laden mislukt", err);
+    setConnection(false, "Fout bij laden · opnieuw proberen");
     scheduleLoad(CONFIG.retryMs);
-  }
+  });
 }
 
-setMode();
-applyTheme();
+/* ---------- Focus-animatie condities (rustig, zonder overlap) ---------- */
+var focusIndex = 0;
+function cycleFocus() {
+  var items = document.querySelectorAll(".conditions .cond");
+  for (var i = 0; i < items.length; i++) items[i].className = items[i].className.replace(/\s?is-focus/g, "");
+  if (document.documentElement.getAttribute("data-mode") !== "tv" || !items.length) return;
+  items[focusIndex % items.length].className += " is-focus";
+  focusIndex++;
+}
+
+/* ---------- Start ---------- */
+fitStage();
 updateClock();
-window.setInterval(updateClock, 1000);
+setInterval(updateClock, 1000);
+setInterval(cycleFocus, 4000);
 loadDashboard();
-window.setTimeout(() => window.location.reload(), CONFIG.hardReloadMs);
-window.addEventListener("resize", setMode);
-window.addEventListener("online", loadDashboard);
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) loadDashboard();
-});
+setTimeout(function () { window.location.reload(); }, CONFIG.hardReloadMs);
+window.addEventListener("resize", fitStage);
+document.addEventListener("visibilitychange", function () { if (!document.hidden) loadDashboard(); });

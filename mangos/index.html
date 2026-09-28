@@ -4,79 +4,133 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#a94132">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
   <meta name="robots" content="noindex,nofollow">
-  <title>Mango's Beachbar — Dashboard 3.5.0</title>
-  <link rel="preconnect" href="https://www.youtube.com">
-  <link rel="stylesheet" href="style.css?v=350">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Mango's Beachbar — Dashboard 3.6.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&display=swap">
+  <link rel="stylesheet" href="style.css?v=360">
 </head>
 <body>
   <div class="paper-noise" aria-hidden="true"></div>
-  <div id="app">
+
+  <div id="stage">
     <header class="topbar">
       <div class="brand">
         <img src="assets/mangos-roundel.png" alt="" class="roundel">
-        <div><span class="kicker">ZANDVOORT AAN ZEE</span><h1>MANGO'S</h1><p>BEACHBAR · LIVE</p></div>
+        <div class="brand-copy">
+          <span class="kicker">ZANDVOORT AAN ZEE</span>
+          <h1>MANGO'S</h1>
+          <span class="kicker">BEACHBAR · LIVE</span>
+        </div>
       </div>
-      <div class="headline-weather"><span id="headerWeatherIcon">☀️</span><strong id="headerTemperature">--°</strong><span id="headerCondition">Laden…</span></div>
-      <div class="clock"><strong id="clockTime">--:--</strong><span id="clockDate">Vandaag aan zee</span></div>
+      <div class="clock">
+        <strong id="clockTime">--:--</strong>
+        <span id="clockDate">Zandvoort aan Zee</span>
+      </div>
     </header>
 
-    <main class="dashboard">
-      <section class="card current-card">
-        <div class="poster-copy">
+    <main class="grid">
+      <!-- WEER NU -->
+      <section class="card now-card">
+        <div class="now-main">
           <span class="section-label">EL TIEMPO AHORA</span>
-          <div class="temperature-row"><span id="weatherIcon">☀️</span><strong id="temperature">--°</strong></div>
-          <h2 id="condition">Weergegevens laden…</h2>
-          <p>Mango's Beachbar · Zandvoort</p>
+          <div class="temp-row">
+            <span id="weatherIcon" class="now-icon">⛅</span>
+            <strong id="temperature" class="temp">--°</strong>
+          </div>
+          <h2 id="condition" class="condition">Weer laden…</h2>
+          <p class="location">Mango's Beachbar · Zandvoort</p>
+          <img src="assets/host-and-monkey.png" alt="" class="host-art">
         </div>
-        <img src="assets/host-and-monkey.png" alt="Vintage illustratie van een strandhost met aap" class="host-art">
-        <div class="metric-grid">
-          <div><span>Gevoel</span><strong id="feelsLike">--°C</strong></div>
-          <div class="wind-metric"><span>Wind</span><strong id="wind">-- km/u</strong><svg id="windArrow" viewBox="0 0 24 24" style="--wind-deg:0deg" aria-hidden="true"><path d="M12 2 17 12h-4v10h-2V12H7z"/></svg></div>
-          <div><span>Windstoten</span><strong id="windGusts">-- km/u</strong></div>
-          <div><span>UV-index</span><strong id="uvIndex">--</strong></div>
-          <div><span>Neerslag</span><strong id="precipitation">-- mm</strong></div>
-          <div><span>Zicht</span><strong id="visibility">-- km</strong></div>
+        <div class="now-metrics">
+          <div class="metric metric-wind">
+            <span class="metric-label">Wind</span>
+            <strong><span id="windBft">-</span> <small>Bft</small> <span id="windDir">--</span></strong>
+            <em id="windKmh">-- km/u · stoten -- km/u</em>
+            <svg id="windArrow" class="wind-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 18 13h-4.5v9h-3v-9H6z"/></svg>
+          </div>
+          <div class="metric"><span class="metric-label">Gevoel</span><strong id="feelsLike">--°</strong></div>
+          <div class="metric"><span class="metric-label">UV-index</span><strong id="uvIndex">--</strong></div>
+          <div class="metric"><span class="metric-label">Regen nu</span><strong id="precipitation">-- mm</strong></div>
+          <div class="metric"><span class="metric-label">Vochtigheid</span><strong id="humidity">--%</strong></div>
         </div>
       </section>
 
-      <section class="card camera-card">
-        <div class="card-heading"><div><span class="section-label">EN VIVO</span><h2>Live vanaf het strand</h2></div><span class="live"><i></i> LIVE</span></div>
-        <div class="camera-frame">
-          <iframe id="liveCamera" title="Live webcam Zandvoort" src="https://www.youtube.com/embed/q0-DDh1zdY4?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-          <div id="cameraFallback" class="camera-fallback" aria-live="polite"><span>Livecam wordt geladen…</span></div>
+      <!-- CAMERA -->
+      <section class="card cam-card">
+        <div class="card-heading">
+          <div><span class="section-label">EN VIVO</span><h2>Live vanaf het strand</h2></div>
+          <span class="live"><i></i>LIVE</span>
+        </div>
+        <div class="cam-frame">
+          <div class="cam-fallback">Livecam laden…</div>
+          <iframe id="liveCamera" title="Live webcam Zandvoort"
+            src="https://www.youtube.com/embed/q0-DDh1zdY4?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
         </div>
       </section>
 
+      <!-- REDDINGSBRIGADE -->
+      <section class="card rescue-card">
+        <div class="card-heading">
+          <div><span class="section-label">SEGURIDAD DE PLAYA</span><h2>Reddingsbrigade</h2></div>
+        </div>
+        <div id="rescuePosts" class="rescue-posts">
+          <div class="placeholder">Strandposten ophalen…</div>
+        </div>
+        <p class="rescue-note">Bron: Strand App · vlaggen ter plaatse zijn leidend.</p>
+      </section>
+
+      <!-- VERWACHTING -->
       <section class="card forecast-card">
-        <div class="card-heading"><div><span class="section-label">PRÓXIMAS HORAS</span><h2>Verwachting</h2></div><span id="forecastSource" class="source-chip">KNMI · 8 UUR</span></div>
-        <div id="hourlyForecast" class="hourly-forecast"><div class="loading-copy">Verwachting ophalen…</div></div>
+        <div class="card-heading">
+          <div class="heading-inline"><span class="section-label">PRÓXIMAS HORAS</span><h2>Verwachting</h2></div>
+          <span id="forecastSource" class="chip">KNMI · 8 UUR</span>
+        </div>
+        <div id="hourlyForecast" class="hourly">
+          <div class="placeholder">Verwachting ophalen…</div>
+        </div>
       </section>
 
-      <section class="beach-status-panel" aria-label="Strand- en zeecondities">
-        <section class="card rescue-card">
-          <div class="card-heading"><div><span class="section-label">SEGURIDAD DE PLAYA</span><h2>Reddingsbrigade Zandvoort</h2></div><span class="source-chip">STRAND APP</span></div>
-          <div id="rescuePosts" class="rescue-posts"><div class="rescue-loading">Strandpoststatus ophalen…</div></div>
-        </section>
-
-        <section class="conditions-strip">
-          <div class="condition-item"><b>🌊</b><span>Golven<strong id="waveHeight">-- m</strong></span></div>
-          <div class="condition-item"><b>🌡</b><span>Zeewater<strong id="waterTemperature">--°C</strong></span></div>
-          <div class="condition-item tide-item"><svg id="tideSpark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="tideSparkLine" points=""/><circle id="tideSparkNow" cx="0" cy="17" r="2.4"/></svg><span>Getijden · modelindicatie<strong id="tideState">Waterstand laden…</strong><em><b id="tideHeight">Stand -- m</b> · Vloed <b id="nextHighTide">--:--</b> · Eb <b id="nextLowTide">--:--</b></em></span></div>
-          <div class="condition-item"><b>🧭</b><span>Golfrichting<strong id="waveDirection">--</strong></span></div>
-          <div class="condition-item"><b>〰</b><span>Golfperiode<strong id="wavePeriod">-- sec</strong></span></div>
-          <div class="condition-item"><b>💧</b><span>Luchtvochtigheid<strong id="humidity">--%</strong></span></div>
-          <div class="condition-item"><b id="sunIcon">🌅</b><span><span id="sunLabel">Zonsondergang</span><strong id="sunset">--:--</strong></span></div>
-        </section>
+      <!-- CONDITIES -->
+      <section class="conditions">
+        <div class="cond"><b>🌊</b><div><small>Golven</small><strong id="waveHeight">-- m</strong><em id="waveDirection">richting --</em></div></div>
+        <div class="cond"><b>🌡️</b><div><small>Zeewater</small><strong id="waterTemperature">--°</strong><em>oppervlakte</em></div></div>
+        <div class="cond cond-tide">
+          <svg id="tideSpark" viewBox="0 0 240 80" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="0" y1="40" x2="240" y2="40" class="tide-mid"/>
+            <polyline id="tideSparkLine" points=""/>
+            <line id="tideNowLine" x1="60" y1="0" x2="60" y2="80" class="tide-now-line"/>
+            <circle id="tideSparkNow" cx="60" cy="40" r="6"/>
+          </svg>
+          <div>
+            <small>Getij · modelindicatie</small>
+            <strong id="tideState">Getij laden…</strong>
+            <em>Vloed <b id="nextHighTide">--:--</b> · Eb <b id="nextLowTide">--:--</b></em>
+          </div>
+        </div>
+        <div class="cond"><b>〰️</b><div><small>Golfperiode</small><strong id="wavePeriod">-- s</strong><em>tussen golven</em></div></div>
+        <div class="cond"><b id="sunIcon">🌅</b><div><small id="sunLabel">Zonsondergang</small><strong id="sunTime">--:--</strong><em id="sunSub">vandaag</em></div></div>
       </section>
 
-      <section class="advice-bar"><span>✦</span><div><small>HOY EN LA PLAYA</small><strong id="beachAdvice">Actueel strandadvies wordt samengesteld…</strong></div></section>
+      <!-- ADVIES -->
+      <section class="advice">
+        <span class="advice-icon">✦</span>
+        <small>HOY EN LA PLAYA</small>
+        <strong id="beachAdvice">Sol · Sabor · Playa</strong>
+      </section>
     </main>
-    <footer><span>Sol · Sabor · Playa</span><div><span id="modeName">AUTO</span> · MANGO'S DASHBOARD 3.5.0 · KNMI via Open-Meteo & Strand App</div><div id="connectionState" class="connection-state"><i></i><span id="connectionText">Verbinden…</span></div></footer>
+
+    <footer>
+      <span>Sol · Sabor · Playa</span>
+      <span>MANGO'S DASHBOARD 3.6.0 · KNMI via Open-Meteo &amp; Strand App</span>
+      <span id="connectionState" class="connection"><i></i><span id="connectionText">Verbinden…</span></span>
+    </footer>
   </div>
-  <script src="script.js?v=350" defer></script>
+
+  <script src="script.js?v=360"></script>
 </body>
 </html>
