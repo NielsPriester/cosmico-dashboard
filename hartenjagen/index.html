@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14532d">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Hartenjagen">
+  <title>Hartenjagen Scorebord</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♥️</text></svg>">
+  <style>
+    :root {
+      --felt: #14532d;
+      --felt-2: #166534;
+      --bg: #0f3d22;
+      --card: #ffffff;
+      --ink: #1c1917;
+      --muted: #6b6560;
+      --line: #e7e2dc;
+      --red: #c8102e;
+      --red-soft: #fde8eb;
+      --gold: #d4a017;
+      --good: #15803d;
+      --good-soft: #dcfce7;
+      --shadow: 0 6px 20px rgba(0,0,0,.18);
+      --radius: 16px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #071a0f;
+        --felt: #0b2e19;
+        --felt-2: #0f3a20;
+        --card: #1c1f1d;
+        --ink: #f3f1ee;
+        --muted: #a8a29e;
+        --line: #333835;
+        --red: #f43f5e;
+        --red-soft: #3b1219;
+        --good: #4ade80;
+        --good-soft: #10331d;
+      }
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(ellipse at top, var(--felt-2), var(--bg) 70%) fixed;
+      background-color: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: env(safe-area-inset-top) 0 calc(24px + env(safe-area-inset-bottom));
+    }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+    header.top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 0 14px; color: #fff;
+    }
+    header.top h1 { margin: 0; font-size: 1.5rem; letter-spacing: .02em; display: flex; gap: .4em; align-items: center; }
+    header.top h1 .suit { color: #ff4d6d; }
+    .iconbtn {
+      background: rgba(255,255,255,.12); color: #fff; border: 0; border-radius: 12px;
+      padding: 10px 12px; font-size: .9rem; font-weight: 600; cursor: pointer;
+    }
+    .iconbtn:active { transform: scale(.97); }
+    .panel {
+      background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 16px; margin-bottom: 14px;
+    }
+    .panel h2 { margin: 0 0 12px; font-size: 1.05rem; }
+    .muted { color: var(--muted); font-size: .9rem; }
+    label.field { display: block; margin-bottom: 10px; }
+    label.field span { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 4px; }
+    input[type=text], input[type=number], select {
+      width: 100%; font: inherit; font-size: 1rem; padding: 11px 12px;
+      border-radius: 10px; border: 1.5px solid var(--line); background: transparent; color: var(--ink);
+    }
+    select option { color: #1c1917; }
+    input:focus, select:focus { outline: 2px solid var(--red); outline-offset: 1px; border-color: transparent; }
+    .row { display: flex; gap: 10px; align-items: center; }
+    .row > * { flex: 1; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      font: inherit; font-weight: 700; font-size: 1rem; padding: 13px 16px; border-radius: 12px;
+      border: 0; cursor: pointer; background: var(--red); color: #fff; width: 100%;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+    .btn.small { padding: 8px 12px; font-size: .9rem; width: auto; }
+    .btn:active:not(:disabled) { transform: scale(.98); }
+
+    /* Setup */
+    .player-input { display: flex; gap: 8px; margin-bottom: 8px; }
+    .player-input input { flex: 1; }
+    .player-input button { flex: 0 0 44px; }
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 420px) { .settings-grid { grid-template-columns: 1fr; } }
+
+    /* Scoreboard */
+    .info-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .chip {
+      background: rgba(255,255,255,.14); color: #fff; padding: 6px 10px; border-radius: 999px;
+      font-size: .85rem; font-weight: 600;
+    }
+    .standings { display: grid; gap: 8px; }
+    .stand {
+      display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line);
+    }
+    .stand .pos { font-weight: 800; color: var(--muted); text-align: center; }
+    .stand .name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .stand .bar { height: 5px; border-radius: 3px; background: var(--line); margin-top: 6px; overflow: hidden; }
+    .stand .bar i { display: block; height: 100%; background: var(--red); border-radius: 3px; }
+    .stand .total { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .stand.lead { border-color: var(--good); background: var(--good-soft); }
+    .stand.lead .pos { color: var(--good); }
+    .stand.danger .total { color: var(--red); }
+
+    /* Round entry */
+    .entry-player {
+      display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid var(--line);
+    }
+    .entry-player:last-of-type { border-bottom: 0; }
+    .entry-player .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .entry-player .pts { font-size: .8rem; color: var(--muted); }
+    .stepper { display: flex; align-items: center; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .stepper button {
+      width: 42px; height: 42px; border: 0; background: transparent; color: var(--ink);
+      font-size: 1.3rem; font-weight: 700; cursor: pointer;
+    }
+    .stepper button:active { background: var(--line); }
+    .stepper output { min-width: 44px; text-align: center; font-weight: 800; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+    .stepper output::after { content: " ♥"; color: var(--red); font-size: .85rem; }
+    .queen {
+      width: 48px; height: 46px; border-radius: 12px; border: 1.5px dashed var(--line);
+      background: transparent; color: var(--muted); font-weight: 800; font-size: 1rem; cursor: pointer;
+    }
+    .queen.on { background: #1c1917; color: #fff; border: 1.5px solid #1c1917; }
+    .manual-input { width: 90px !important; text-align: center; font-weight: 700; }
+    .entry-status {
+      margin: 12px 0; padding: 10px 12px; border-radius: 10px; font-size: .9rem; font-weight: 600;
+      background: var(--red-soft); color: var(--red);
+    }
+    .entry-status.ok { background: var(--good-soft); color: var(--good); }
+    .toggle { display: flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--muted); cursor: pointer; user-select: none; }
+    .toggle input { width: 18px; height: 18px; accent-color: var(--red); }
+    .entry-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+    .entry-head h2 { margin: 0; }
+
+    /* History */
+    .table-wrap { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th { font-size: .8rem; color: var(--muted); font-weight: 700; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
+    td:first-child, th:first-child { text-align: left; color: var(--muted); }
+    tbody tr { cursor: pointer; }
+    tbody tr:hover { background: var(--line); }
+    tbody tr.editing { background: var(--red-soft); }
+    td .sub { display: block; font-size: .7rem; color: var(--muted); }
+    td.moon { color: var(--gold); font-weight: 800; }
+    tfoot td { font-weight: 800; border-bottom: 0; border-top: 2px solid var(--ink); }
+
+    /* Winner */
+    .winner { text-align: center; padding: 22px 16px; }
+    .winner .big { font-size: 2.6rem; }
+    .winner h2 { font-size: 1.4rem; margin: 6px 0; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(calc(100% + 60px));
+      background: #1c1917; color: #fff; padding: 12px 18px; border-radius: 12px; font-weight: 600;
+      box-shadow: var(--shadow); transition: transform .25s ease; z-index: 10; max-width: calc(100% - 32px); text-align: center;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .hidden { display: none !important; }
+    details summary { cursor: pointer; font-weight: 700; }
+    details ul { margin: 10px 0 0; padding-left: 20px; color: var(--muted); font-size: .9rem; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <h1><span class="suit">♥</span> Hartenjagen</h1>
+      <button class="iconbtn hidden" id="btnNew" type="button">Nieuw spel</button>
+    </header>
+
+    <!-- SETUP -->
+    <section id="setup">
+      <div class="panel">
+        <h2>Spelers</h2>
+        <div id="playerInputs"></div>
+        <button class="btn ghost small" id="btnAddPlayer" type="button">+ Speler toevoegen</button>
+        <p class="muted" style="margin:10px 0 0">3 tot 6 spelers. Meestal speel je met 4.</p>
+      </div>
+      <div class="panel">
+        <h2>Spelregels</h2>
+        <div class="settings-grid">
+          <label class="field"><span>Spel eindigt bij</span>
+            <input type="number" id="setTarget" min="10" step="5" value="100" inputmode="numeric">
+          </label>
+          <label class="field"><span>Schoppenvrouw telt</span>
+            <input type="number" id="setQueen" min="0" step="1" value="13" inputmode="numeric">
+          </label>
+        </div>
+        <label class="field"><span>Alle punten gehaald (“de maan schieten”)</span>
+          <select id="setMoon">
+            <option value="others">Alle anderen krijgen de punten</option>
+            <option value="self">Speler krijgt de punten eraf</option>
+            <option value="none">Geen speciale regel</option>
+          </select>
+        </label>
+      </div>
+      <button class="btn" id="btnStart" type="button">Start spel ♥</button>
+    </section>
+
+    <!-- GAME -->
+    <section id="game" class="hidden">
+      <div class="info-bar" id="infoBar"></div>
+
+      <div class="panel winner hidden" id="winnerPanel"></div>
+
+      <div class="panel">
+        <h2>Stand</h2>
+        <div class="standings" id="standings"></div>
+      </div>
+
+      <div class="panel" id="entryPanel">
+        <div class="entry-head">
+          <h2 id="entryTitle">Ronde 1</h2>
+          <label class="toggle"><input type="checkbox" id="manualToggle"> Vrij invoeren</label>
+        </div>
+        <p class="muted" id="entryHint" style="margin:0 0 4px">Tel per speler de harten en tik op <b>♠V</b> bij wie de schoppenvrouw heeft.</p>
+        <div id="entryRows"></div>
+        <div class="entry-status" id="entryStatus"></div>
+        <div class="row">
+          <button class="btn ghost hidden" id="btnCancelEdit" type="button">Annuleren</button>
+          <button class="btn" id="btnSave" type="button" disabled>Ronde opslaan</button>
+        </div>
+      </div>
+
+      <div class="panel" id="historyPanel">
+        <div class="entry-head">
+          <h2>Rondes</h2>
+          <button class="btn ghost small" id="btnUndo" type="button">↶ Laatste wissen</button>
+        </div>
+        <p class="muted" style="margin:0 0 8px">Tik op een ronde om die aan te passen.</p>
+        <div class="table-wrap"><table id="historyTable"></table></div>
+      </div>
+
+      <div class="panel">
+        <details>
+          <summary>Puntentelling</summary>
+          <ul id="rulesList"></ul>
+        </details>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+  (function () {
+    'use strict';
+    var KEY = 'hartenjagen-v1';
+    var HEARTS = 13;
+    var $ = function (id) { return document.getElementById(id); };
+
+    var state = load() || null;
+    var draft = null;        // { hearts:[], queen:-1, manual:[], isManual:false }
+    var editIndex = -1;      // index of round being edited, -1 = new round
+    var setupNames = ['', '', '', ''];
+
+    function load() {
+      try { var s = JSON.parse(localStorage.getItem(KEY)); return s && s.players ? s : null; } catch (e) { return null; }
+    }
+    function save() {
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    }
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+    }
+    function toast(msg) {
+      var t = $('toast'); t.textContent = msg; t.classList.add('show');
+      clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 2200);
+    }
+
+    /* ---------- Setup ---------- */
+    function renderSetup() {
+      var box = $('playerInputs'); box.innerHTML = '';
+      setupNames.forEach(function (n, i) {
+        var d = document.createElement('div'); d.className = 'player-input';
+        d.innerHTML = '<input type="text" maxlength="16" autocomplete="off" placeholder="Speler ' + (i + 1) + '" value="' + esc(n) + '">' +
+          (setupNames.length > 3 ? '<button class="btn ghost small" type="button" aria-label="Verwijder">✕</button>' : '');
+        d.querySelector('input').addEventListener('input', function (e) { setupNames[i] = e.target.value; });
+        var rm = d.querySelector('button');
+        if (rm) rm.addEventListener('click', function () { setupNames.splice(i, 1); renderSetup(); });
+        box.appendChild(d);
+      });
+      $('btnAddPlayer').classList.toggle('hidden', setupNames.length >= 6);
+    }
+    $('btnAddPlayer').addEventListener('click', function () {
+      if (setupNames.length < 6) { setupNames.push(''); renderSetup(); var ins = $('playerInputs').querySelectorAll('input'); ins[ins.length - 1].focus(); }
+    });
+    $('btnStart').addEventListener('click', function () {
+      var players = setupNames.map(function (n, i) { return n.trim() || ('Speler ' + (i + 1)); });
+      var target = Math.max(10, parseInt($('setTarget').value, 10) || 100);
+      var queen = Math.max(0, parseInt($('setQueen').value, 10));
+      if (isNaN(queen)) queen = 13;
+      state = { players: players, rounds: [], settings: { target: target, queen: queen, moon: $('setMoon').value }, started: Date.now() };
+      save(); editIndex = -1; resetDraft(); show();
+    });
+    $('btnNew').addEventListener('click', function () {
+      if (state && state.rounds.length && !confirm('Huidig spel stoppen en een nieuw spel beginnen?')) return;
+      if (state) {
+        setupNames = state.players.slice();
+        $('setTarget').value = state.settings.target;
+        $('setQueen').value = state.settings.queen;
+        $('setMoon').value = state.settings.moon;
+      }
+      state = null;
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      show();
+    });
+
+    /* ---------- Scoring ---------- */
+    function totalPoints() { return HEARTS + state.settings.queen; }
+
+    function scoreRound(hearts, queen) {
+      var n = state.players.length, s = state.settings;
+      var pts = hearts.map(function (h, i) { return h + (i === queen ? s.queen : 0); });
+      var moon = -1;
+      for (var i = 0; i < n; i++) if (hearts[i] === HEARTS && queen === i) moon = i;
+      if (moon >= 0 && s.moon !== 'none') {
+        var t = totalPoints();
+        pts = pts.map(function (_, i) {
+          if (s.moon === 'others') return i === moon ? 0 : t;
+          return i === moon ? -t : 0;
+        });
+      }
+      return { scores: pts, moon: moon };
+    }
+
+    function totals(upto) {
+      var t = state.players.map(function () { return 0; });
+      var r = state.rounds; var end = upto == null ? r.length : upto;
+      for (var k = 0; k < end; k++) r[k].scores.forEach(function (v, i) { t[i] += v; });
+      return t;
+    }
+
+    function isFinished() {
+      if (!state.rounds.length) return false;
+      return totals().some(function (v) { return v >= state.settings.target; });
+    }
+
+    function passInfo(roundIdx) {
+      var n = state.players.length;
+      var dirs = n === 4 ? ['naar links', 'naar rechts', 'naar overkant', 'niet passen'] : ['naar links', 'naar rechts', 'niet passen'];
+      return dirs[roundIdx % dirs.length];
+    }
+
+    /* ---------- Draft (round entry) ---------- */
+    function resetDraft(fromRound) {
+      var n = state.players.length;
+      if (fromRound) {
+        draft = {
+          hearts: fromRound.hearts ? fromRound.hearts.slice() : state.players.map(function () { return 0; }),
+          queen: fromRound.queen != null ? fromRound.queen : -1,
+          manual: fromRound.scores.slice(),
+          isManual: !!fromRound.manual
+        };
+      } else {
+        draft = { hearts: new Array(n).fill(0), queen: -1, manual: new Array(n).fill(''), isManual: draft ? draft.isManual : false };
+      }
+    }
+
+    function draftValid() {
+      if (draft.isManual) {
+        return draft.manual.every(function (v) { return v !== '' && !isNaN(parseInt(v, 10)); });
+      }
+      var sum = draft.hearts.reduce(function (a, b) { return a + b; }, 0);
+      return sum === HEARTS && draft.queen >= 0;
+    }
+
+    function renderEntry() {
+      var rows = $('entryRows'); rows.innerHTML = '';
+      var roundNo = editIndex >= 0 ? editIndex + 1 : state.rounds.length + 1;
+      $('entryTitle').textContent = (editIndex >= 0 ? 'Ronde ' + roundNo + ' aanpassen' : 'Ronde ' + roundNo);
+      $('manualToggle').checked = draft.isManual;
+      $('entryHint').innerHTML = draft.isManual
+        ? 'Vul per speler de punten van deze ronde in (eigen huisregels).'
+        : 'Tel per speler de harten en tik op <b>♠V</b> bij wie de schoppenvrouw heeft.';
+      $('btnCancelEdit').classList.toggle('hidden', editIndex < 0);
+      $('btnSave').textContent = editIndex >= 0 ? 'Wijziging opslaan' : 'Ronde opslaan';
+
+      var preview = draft.isManual ? null : scoreRound(draft.hearts, draft.queen);
+      state.players.forEach(function (name, i) {
+        var d = document.createElement('div'); d.className = 'entry-player';
+        if (draft.isManual) {
+          d.style.gridTemplateColumns = '1fr auto';
+          d.innerHTML = '<div class="nm">' + esc(name) + '</div>' +
+            '<input type="number" inputmode="numeric" class="manual-input" placeholder="0" value="' + esc(draft.manual[i]) + '">';
+          var inp = d.querySelector('input');
+          inp.addEventListener('input', function (e) { draft.manual[i] = e.target.value; updateStatus(); });
+          inp.addEventListener('focus', function (e) { e.target.select(); });
+        } else {
+          var p = preview.scores[i];
+          d.innerHTML = '<div><div class="nm">' + esc(name) + '</div><div class="pts">' + (p > 0 ? '+' : '') + p + ' punten</div></div>' +
+            '<div class="stepper"><button type="button" aria-label="Minder">−</button><output>' + draft.hearts[i] + '</output><button type="button" aria-label="Meer">+</button></div>' +
+            '<button type="button" class="queen' + (draft.queen === i ? ' on' : '') + '" aria-label="Schoppenvrouw" aria-pressed="' + (draft.queen === i) + '">♠V</button>';
+          var b = d.querySelectorAll('.stepper button');
+          b[0].addEventListener('click', function () { if (draft.hearts[i] > 0) { draft.hearts[i]--; renderEntry(); } });
+          b[1].addEventListener('click', function () {
+            var sum = draft.hearts.reduce(function (a, c) { return a + c; }, 0);
+            if (sum < HEARTS) { draft.hearts[i]++; renderEntry(); }
+          });
+          d.querySelector('.queen').addEventListener('click', function () { draft.queen = draft.queen === i ? -1 : i; renderEntry(); });
+        }
+        rows.appendChild(d);
+      });
+      updateStatus(preview);
+    }
+
+    function updateStatus(preview) {
+      var st = $('entryStatus'); var ok = draftValid();
+      var msg;
+      if (draft.isManual) {
+        var filled = draft.manual.filter(function (v) { return v !== ''; }).length;
+        msg = ok ? '✓ Klaar om op te slaan' : 'Nog ' + (state.players.length - filled) + ' speler(s) invullen';
+      } else {
+        var sum = draft.hearts.reduce(function (a, b) { return a + b; }, 0);
+        var left = HEARTS - sum; var parts = [];
+        if (left > 0) parts.push('nog ' + left + ' ♥ te verdelen');
+        if (draft.queen < 0) parts.push('wie had de ♠ vrouw?');
+        if (ok) {
+          msg = '✓ Klaar om op te slaan';
+          if (preview && preview.moon >= 0) msg = '🌙 ' + state.players[preview.moon] + ' heeft alle punten gehaald!';
+        } else {
+          msg = parts.join(' · ');
+          msg = msg.charAt(0).toUpperCase() + msg.slice(1);
+        }
+      }
+      st.textContent = msg; st.classList.toggle('ok', ok);
+      $('btnSave').disabled = !ok;
+    }
+
+    $('manualToggle').addEventListener('change', function (e) {
+      draft.isManual = e.target.checked;
+      if (draft.isManual && draft.hearts.some(function (h) { return h; })) {
+        var pv = scoreRound(draft.hearts, draft.queen).scores;
+        draft.manual = pv.map(String);
+      }
+      renderEntry();
+    });
+
+    $('btnSave').addEventListener('click', function () {
+      if (!draftValid()) return;
+      var round;
+      if (draft.isManual) {
+        round = { scores: draft.manual.map(function (v) { return parseInt(v, 10); }), manual: true };
+      } else {
+        var r = scoreRound(draft.hearts, draft.queen);
+        round = { scores: r.scores, hearts: draft.hearts.slice(), queen: draft.queen, moon: r.moon };
+      }
+      var wasFinished = isFinished();
+      if (editIndex >= 0) { state.rounds[editIndex] = round; toast('Ronde ' + (editIndex + 1) + ' aangepast'); }
+      else {
+        state.rounds.push(round);
+        toast(round.moon >= 0 && state.settings.moon !== 'none' ? '🌙 Maan geschoten door ' + state.players[round.moon] + '!' : 'Ronde ' + state.rounds.length + ' opgeslagen');
+      }
+      editIndex = -1; save(); resetDraft(); render();
+      if (!wasFinished && isFinished()) window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    $('btnCancelEdit').addEventListener('click', function () { editIndex = -1; resetDraft(); render(); });
+
+    $('btnUndo').addEventListener('click', function () {
+      if (!state.rounds.length) return;
+      if (!confirm('Ronde ' + state.rounds.length + ' wissen?')) return;
+      state.rounds.pop(); editIndex = -1; save(); resetDraft(); render(); toast('Laatste ronde gewist');
+    });
+
+    /* ---------- Render ---------- */
+    function renderInfo() {
+      var r = state.rounds.length, n = state.players.length;
+      var chips = [];
+      if (!isFinished()) {
+        chips.push('Ronde ' + (r + 1));
+        chips.push('Deler: ' + esc(state.players[r % n]));
+        chips.push('Passen: ' + passInfo(r));
+      }
+      chips.push('Tot ' + state.settings.target + ' punten');
+      $('infoBar').innerHTML = chips.map(function (c) { return '<span class="chip">' + c + '</span>'; }).join('');
+    }
+
+    function ranking() {
+      var t = totals();
+      return state.players.map(function (name, i) { return { name: name, i: i, total: t[i] }; })
+        .sort(function (a, b) { return a.total - b.total; });
+    }
+
+    function renderStandings() {
+      var rk = ranking(); var target = state.settings.target;
+      var lowest = rk[0].total; var anyRounds = state.rounds.length > 0;
+      var pos = 0, prev = null;
+      $('standings').innerHTML = rk.map(function (p, idx) {
+        if (p.total !== prev) { pos = idx + 1; prev = p.total; }
+        var pct = Math.max(0, Math.min(100, p.total / target * 100));
+        var cls = 'stand' + (anyRounds && p.total === lowest ? ' lead' : '') + (p.total >= target * 0.8 ? ' danger' : '');
+        return '<div class="' + cls + '"><div class="pos">' + pos + '</div>' +
+          '<div><div class="name">' + esc(p.name) + '</div><div class="bar"><i style="width:' + pct + '%"></i></div></div>' +
+          '<div class="total">' + p.total + '</div></div>';
+      }).join('');
+    }
+
+    function renderHistory() {
+      var tbl = $('historyTable');
+      $('historyPanel').classList.toggle('hidden', !state.rounds.length);
+      if (!state.rounds.length) { tbl.innerHTML = ''; return; }
+      var head = '<thead><tr><th>#</th>' + state.players.map(function (p) { return '<th title="' + esc(p) + '">' + esc(p) + '</th>'; }).join('') + '</tr></thead>';
+      var body = '<tbody>' + state.rounds.map(function (r, k) {
+        var run = totals(k + 1);
+        return '<tr data-k="' + k + '"' + (k === editIndex ? ' class="editing"' : '') + '><td>' + (k + 1) + '</td>' + r.scores.map(function (v, i) {
+          var mark = '';
+          if (!r.manual && r.queen === i) mark = ' ♠';
+          var moon = r.moon === i && state.settings.moon !== 'none';
+          return '<td' + (moon ? ' class="moon"' : '') + '>' + (moon ? '🌙 ' : '') + v + mark + '<span class="sub">' + run[i] + '</span></td>';
+        }).join('') + '</tr>';
+      }).join('') + '</tbody>';
+      var t = totals();
+      var foot = '<tfoot><tr><td>Totaal</td>' + t.map(function (v) { return '<td>' + v + '</td>'; }).join('') + '</tr></tfoot>';
+      tbl.innerHTML = head + body + foot;
+      Array.prototype.forEach.call(tbl.querySelectorAll('tbody tr'), function (tr) {
+        tr.addEventListener('click', function () {
+          var k = +tr.getAttribute('data-k');
+          editIndex = k; resetDraft(state.rounds[k]); render();
+          $('entryPanel').classList.remove('hidden');
+          $('entryPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    }
+
+    function renderWinner() {
+      var wp = $('winnerPanel'); var done = isFinished();
+      wp.classList.toggle('hidden', !done);
+      $('entryPanel').classList.toggle('hidden', done && editIndex < 0);
+      if (!done) return;
+      var rk = ranking(); var best = rk[0].total;
+      var winners = rk.filter(function (p) { return p.total === best; }).map(function (p) { return esc(p.name); });
+      wp.innerHTML = '<div class="big">🏆</div><h2>' + winners.join(' & ') + ' ' + (winners.length > 1 ? 'winnen' : 'wint') + '!</h2>' +
+        '<p class="muted">Met ' + best + ' punten na ' + state.rounds.length + ' rondes.</p>' +
+        '<div class="row" style="margin-top:14px"><button class="btn ghost" id="btnRematch" type="button">Revanche</button><button class="btn" id="btnNew2" type="button">Nieuw spel</button></div>';
+      $('btnRematch').addEventListener('click', function () {
+        state.rounds = []; state.started = Date.now(); save(); editIndex = -1; resetDraft(); render(); toast('Nieuw potje, zelfde spelers');
+      });
+      $('btnNew2').addEventListener('click', function () { $('btnNew').click(); });
+    }
+
+    function renderRules() {
+      var s = state.settings;
+      var items = ['Elke ♥ harten = 1 strafpunt', '♠ Schoppenvrouw = ' + s.queen + ' strafpunten', 'Wie het eerst ' + s.target + ' punten haalt, beëindigt het spel — de laagste score wint'];
+      if (s.moon === 'others') items.push('Alle ' + totalPoints() + ' punten in één ronde? Dan krijgen alle anderen ' + totalPoints() + ' punten en jij 0 🌙');
+      if (s.moon === 'self') items.push('Alle ' + totalPoints() + ' punten in één ronde? Dan gaan er ' + totalPoints() + ' punten van je score af 🌙');
+      items.push('Met “Vrij invoeren” vul je zelf punten in voor eigen huisregels');
+      $('rulesList').innerHTML = items.map(function (i) { return '<li>' + i + '</li>'; }).join('');
+    }
+
+    function render() {
+      renderInfo(); renderStandings(); renderWinner(); renderEntry(); renderHistory(); renderRules();
+    }
+
+    function show() {
+      var inGame = !!state;
+      $('setup').classList.toggle('hidden', inGame);
+      $('game').classList.toggle('hidden', !inGame);
+      $('btnNew').classList.toggle('hidden', !inGame);
+      if (inGame) { if (!draft || draft.hearts.length !== state.players.length) resetDraft(); render(); }
+      else renderSetup();
+      window.scrollTo(0, 0);
+    }
+
+    show();
+  })();
+  </script>
+</body>
+</html>
