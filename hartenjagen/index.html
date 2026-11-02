@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#14532d">
   <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Hartenjagen">
@@ -95,7 +96,7 @@
     .player-input input { flex: 1; }
     .player-input button { flex: 0 0 44px; }
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    @media (max-width: 420px) { .settings-grid { grid-template-columns: 1fr; } }
+    
 
     /* Scoreboard */
     .info-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -119,10 +120,11 @@
 
     /* Round entry */
     .entry-player {
-      display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+      display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center;
       padding: 10px 0; border-bottom: 1px solid var(--line);
     }
     .entry-player:last-of-type { border-bottom: 0; }
+    .entry-player.nojack { grid-template-columns: 1fr auto auto; }
     .entry-player .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .entry-player .pts { font-size: .8rem; color: var(--muted); }
     .stepper { display: flex; align-items: center; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; }
@@ -134,7 +136,7 @@
     .stepper output { min-width: 44px; text-align: center; font-weight: 800; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
     .stepper output::after { content: " ♥"; color: var(--red); font-size: .85rem; }
     .queen {
-      width: 48px; height: 46px; border-radius: 12px; border: 1.5px dashed var(--line);
+      width: 44px; height: 46px; border-radius: 12px; border: 1.5px dashed var(--line);
       background: transparent; color: var(--muted); font-weight: 800; font-size: 1rem; cursor: pointer;
     }
     .queen.on { background: #1c1917; color: #fff; border: 1.5px solid #1c1917; }
@@ -159,6 +161,7 @@
     tbody tr:hover { background: var(--line); }
     tbody tr.editing { background: var(--red-soft); }
     td .sub { display: block; font-size: .7rem; color: var(--muted); }
+    td .sub.reset { color: var(--gold); font-weight: 800; }
     td.moon { color: var(--gold); font-weight: 800; }
     tfoot td { font-weight: 800; border-bottom: 0; border-top: 2px solid var(--ink); }
 
@@ -195,12 +198,22 @@
       </div>
       <div class="panel">
         <h2>Spelregels</h2>
-        <div class="settings-grid">
-          <label class="field"><span>Spel eindigt bij</span>
+          <label class="field"><span>Spelen tot (punten)</span>
             <input type="number" id="setTarget" min="10" step="5" value="100" inputmode="numeric">
           </label>
+        <label class="field"><span>Kom je op of boven die score</span>
+          <select id="setAtTarget">
+            <option value="reset">Gaat terug naar 0 en speelt door</option>
+            <option value="end">Spel is afgelopen</option>
+          </select>
+        </label>
+
+        <div class="settings-grid">
           <label class="field"><span>Schoppenvrouw telt</span>
-            <input type="number" id="setQueen" min="0" step="1" value="13" inputmode="numeric">
+            <input type="number" id="setQueen" min="0" step="1" value="5" inputmode="numeric">
+          </label>
+          <label class="field"><span>Klaverboer telt</span>
+            <input type="number" id="setJack" min="0" step="1" value="2" inputmode="numeric">
           </label>
         </div>
         <label class="field"><span>Alle punten gehaald (“de maan schieten”)</span>
@@ -237,6 +250,7 @@
           <button class="btn ghost hidden" id="btnCancelEdit" type="button">Annuleren</button>
           <button class="btn" id="btnSave" type="button" disabled>Ronde opslaan</button>
         </div>
+        <button class="btn ghost hidden" id="btnFinish" type="button" style="margin-top:10px">🏁 Spel afronden</button>
       </div>
 
       <div class="panel" id="historyPanel">
@@ -267,7 +281,7 @@
     var $ = function (id) { return document.getElementById(id); };
 
     var state = load() || null;
-    var draft = null;        // { hearts:[], queen:-1, manual:[], isManual:false }
+    var draft = null;        // { hearts:[], queen:-1, jack:-1, manual:[], isManual:false }
     var editIndex = -1;      // index of round being edited, -1 = new round
     var setupNames = ['', '', '', ''];
 
@@ -286,6 +300,16 @@
     }
 
     /* ---------- Setup ---------- */
+    // Standaard huisregels: tot 100 (dan terug naar 0), schoppenvrouw 5, klaverboer 2.
+    var DEFAULT_RULES = { target: 100, atTarget: 'reset', queen: 5, jack: 2, moon: 'others' };
+    function setDefaultRules() {
+      $('setTarget').value = DEFAULT_RULES.target;
+      $('setAtTarget').value = DEFAULT_RULES.atTarget;
+      $('setQueen').value = DEFAULT_RULES.queen;
+      $('setJack').value = DEFAULT_RULES.jack;
+      $('setMoon').value = DEFAULT_RULES.moon;
+    }
+
     function renderSetup() {
       var box = $('playerInputs'); box.innerHTML = '';
       setupNames.forEach(function (n, i) {
@@ -306,31 +330,32 @@
       var players = setupNames.map(function (n, i) { return n.trim() || ('Speler ' + (i + 1)); });
       var target = Math.max(10, parseInt($('setTarget').value, 10) || 100);
       var queen = Math.max(0, parseInt($('setQueen').value, 10));
-      if (isNaN(queen)) queen = 13;
-      state = { players: players, rounds: [], settings: { target: target, queen: queen, moon: $('setMoon').value }, started: Date.now() };
+      if (isNaN(queen)) queen = 5;
+      var jack = Math.max(0, parseInt($('setJack').value, 10));
+      if (isNaN(jack)) jack = 2;
+      state = { players: players, rounds: [], settings: { target: target, queen: queen, jack: jack, atTarget: $('setAtTarget').value, moon: $('setMoon').value }, started: Date.now() };
       save(); editIndex = -1; resetDraft(); show();
     });
     $('btnNew').addEventListener('click', function () {
       if (state && state.rounds.length && !confirm('Huidig spel stoppen en een nieuw spel beginnen?')) return;
       if (state) {
         setupNames = state.players.slice();
-        $('setTarget').value = state.settings.target;
-        $('setQueen').value = state.settings.queen;
-        $('setMoon').value = state.settings.moon;
       }
       state = null;
+      setDefaultRules();
       try { localStorage.removeItem(KEY); } catch (e) {}
       show();
     });
 
     /* ---------- Scoring ---------- */
-    function totalPoints() { return HEARTS + state.settings.queen; }
+    function jackValue() { return state.settings.jack || 0; }
+    function totalPoints() { return HEARTS + state.settings.queen + jackValue(); }
 
-    function scoreRound(hearts, queen) {
-      var n = state.players.length, s = state.settings;
-      var pts = hearts.map(function (h, i) { return h + (i === queen ? s.queen : 0); });
+    function scoreRound(hearts, queen, jack) {
+      var n = state.players.length, s = state.settings, jv = jackValue();
+      var pts = hearts.map(function (h, i) { return h + (i === queen ? s.queen : 0) + (i === jack ? jv : 0); });
       var moon = -1;
-      for (var i = 0; i < n; i++) if (hearts[i] === HEARTS && queen === i) moon = i;
+      for (var i = 0; i < n; i++) if (hearts[i] === HEARTS && queen === i && (jv === 0 || jack === i)) moon = i;
       if (moon >= 0 && s.moon !== 'none') {
         var t = totalPoints();
         pts = pts.map(function (_, i) {
@@ -341,15 +366,28 @@
       return { scores: pts, moon: moon };
     }
 
-    function totals(upto) {
+    function resetMode() { return state.settings.atTarget === 'reset'; }
+
+    // Loopt alle rondes door; bij de terug-naar-0-regel gaat wie de grens haalt naar 0.
+    function runInfo(upto) {
       var t = state.players.map(function () { return 0; });
       var r = state.rounds; var end = upto == null ? r.length : upto;
-      for (var k = 0; k < end; k++) r[k].scores.forEach(function (v, i) { t[i] += v; });
-      return t;
+      var runs = [], resets = [];
+      for (var k = 0; k < end; k++) {
+        var rs = state.players.map(function () { return false; });
+        r[k].scores.forEach(function (v, i) {
+          t[i] += v;
+          if (resetMode() && t[i] >= state.settings.target) { t[i] = 0; rs[i] = true; }
+        });
+        runs.push(t.slice()); resets.push(rs);
+      }
+      return { totals: t, runs: runs, resets: resets };
     }
+    function totals(upto) { return runInfo(upto).totals; }
 
     function isFinished() {
       if (!state.rounds.length) return false;
+      if (resetMode()) return !!state.finished;
       return totals().some(function (v) { return v >= state.settings.target; });
     }
 
@@ -366,11 +404,12 @@
         draft = {
           hearts: fromRound.hearts ? fromRound.hearts.slice() : state.players.map(function () { return 0; }),
           queen: fromRound.queen != null ? fromRound.queen : -1,
+          jack: fromRound.jack != null ? fromRound.jack : -1,
           manual: fromRound.scores.slice(),
           isManual: !!fromRound.manual
         };
       } else {
-        draft = { hearts: new Array(n).fill(0), queen: -1, manual: new Array(n).fill(''), isManual: draft ? draft.isManual : false };
+        draft = { hearts: new Array(n).fill(0), queen: -1, jack: -1, manual: new Array(n).fill(''), isManual: draft ? draft.isManual : false };
       }
     }
 
@@ -379,7 +418,7 @@
         return draft.manual.every(function (v) { return v !== '' && !isNaN(parseInt(v, 10)); });
       }
       var sum = draft.hearts.reduce(function (a, b) { return a + b; }, 0);
-      return sum === HEARTS && draft.queen >= 0;
+      return sum === HEARTS && draft.queen >= 0 && (jackValue() === 0 || draft.jack >= 0);
     }
 
     function renderEntry() {
@@ -389,11 +428,11 @@
       $('manualToggle').checked = draft.isManual;
       $('entryHint').innerHTML = draft.isManual
         ? 'Vul per speler de punten van deze ronde in (eigen huisregels).'
-        : 'Tel per speler de harten en tik op <b>♠V</b> bij wie de schoppenvrouw heeft.';
+        : 'Tel per speler de harten en tik op <b>♠V</b> bij wie de schoppenvrouw heeft' + (jackValue() ? ' en op <b>♣B</b> bij wie de klaverboer heeft.' : '.');
       $('btnCancelEdit').classList.toggle('hidden', editIndex < 0);
       $('btnSave').textContent = editIndex >= 0 ? 'Wijziging opslaan' : 'Ronde opslaan';
 
-      var preview = draft.isManual ? null : scoreRound(draft.hearts, draft.queen);
+      var preview = draft.isManual ? null : scoreRound(draft.hearts, draft.queen, draft.jack);
       state.players.forEach(function (name, i) {
         var d = document.createElement('div'); d.className = 'entry-player';
         if (draft.isManual) {
@@ -407,14 +446,18 @@
           var p = preview.scores[i];
           d.innerHTML = '<div><div class="nm">' + esc(name) + '</div><div class="pts">' + (p > 0 ? '+' : '') + p + ' punten</div></div>' +
             '<div class="stepper"><button type="button" aria-label="Minder">−</button><output>' + draft.hearts[i] + '</output><button type="button" aria-label="Meer">+</button></div>' +
-            '<button type="button" class="queen' + (draft.queen === i ? ' on' : '') + '" aria-label="Schoppenvrouw" aria-pressed="' + (draft.queen === i) + '">♠V</button>';
+            '<button type="button" class="queen' + (draft.queen === i ? ' on' : '') + '" aria-label="Schoppenvrouw" aria-pressed="' + (draft.queen === i) + '">♠V</button>' +
+            (jackValue() ? '<button type="button" class="queen jack' + (draft.jack === i ? ' on' : '') + '" aria-label="Klaverboer" aria-pressed="' + (draft.jack === i) + '">♣B</button>' : '');
+          if (!jackValue()) d.classList.add('nojack');
           var b = d.querySelectorAll('.stepper button');
           b[0].addEventListener('click', function () { if (draft.hearts[i] > 0) { draft.hearts[i]--; renderEntry(); } });
           b[1].addEventListener('click', function () {
             var sum = draft.hearts.reduce(function (a, c) { return a + c; }, 0);
             if (sum < HEARTS) { draft.hearts[i]++; renderEntry(); }
           });
-          d.querySelector('.queen').addEventListener('click', function () { draft.queen = draft.queen === i ? -1 : i; renderEntry(); });
+          d.querySelector('.queen:not(.jack)').addEventListener('click', function () { draft.queen = draft.queen === i ? -1 : i; renderEntry(); });
+          var jb = d.querySelector('.jack');
+          if (jb) jb.addEventListener('click', function () { draft.jack = draft.jack === i ? -1 : i; renderEntry(); });
         }
         rows.appendChild(d);
       });
@@ -432,6 +475,7 @@
         var left = HEARTS - sum; var parts = [];
         if (left > 0) parts.push('nog ' + left + ' ♥ te verdelen');
         if (draft.queen < 0) parts.push('wie had de ♠ vrouw?');
+        if (jackValue() && draft.jack < 0) parts.push('wie had de ♣ boer?');
         if (ok) {
           msg = '✓ Klaar om op te slaan';
           if (preview && preview.moon >= 0) msg = '🌙 ' + state.players[preview.moon] + ' heeft alle punten gehaald!';
@@ -447,7 +491,7 @@
     $('manualToggle').addEventListener('change', function (e) {
       draft.isManual = e.target.checked;
       if (draft.isManual && draft.hearts.some(function (h) { return h; })) {
-        var pv = scoreRound(draft.hearts, draft.queen).scores;
+        var pv = scoreRound(draft.hearts, draft.queen, draft.jack).scores;
         draft.manual = pv.map(String);
       }
       renderEntry();
@@ -459,17 +503,25 @@
       if (draft.isManual) {
         round = { scores: draft.manual.map(function (v) { return parseInt(v, 10); }), manual: true };
       } else {
-        var r = scoreRound(draft.hearts, draft.queen);
-        round = { scores: r.scores, hearts: draft.hearts.slice(), queen: draft.queen, moon: r.moon };
+        var r = scoreRound(draft.hearts, draft.queen, draft.jack);
+        round = { scores: r.scores, hearts: draft.hearts.slice(), queen: draft.queen, jack: draft.jack, moon: r.moon };
       }
       var wasFinished = isFinished();
       if (editIndex >= 0) { state.rounds[editIndex] = round; toast('Ronde ' + (editIndex + 1) + ' aangepast'); }
       else {
         state.rounds.push(round);
-        toast(round.moon >= 0 && state.settings.moon !== 'none' ? '🌙 Maan geschoten door ' + state.players[round.moon] + '!' : 'Ronde ' + state.rounds.length + ' opgeslagen');
+        var ri = runInfo(); var rsNames = state.players.filter(function (_, i) { return ri.resets[ri.resets.length - 1][i]; });
+        if (rsNames.length) toast('↺ ' + rsNames.join(' & ') + ' ' + (rsNames.length > 1 ? 'gaan' : 'gaat') + ' terug naar 0!');
+        else toast(round.moon >= 0 && state.settings.moon !== 'none' ? '🌙 Maan geschoten door ' + state.players[round.moon] + '!' : 'Ronde ' + state.rounds.length + ' opgeslagen');
       }
       editIndex = -1; save(); resetDraft(); render();
       if (!wasFinished && isFinished()) window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    $('btnFinish').addEventListener('click', function () {
+      if (!confirm('Spel afronden? De laagste score wint.')) return;
+      state.finished = true; editIndex = -1; save(); resetDraft(); render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
     $('btnCancelEdit').addEventListener('click', function () { editIndex = -1; resetDraft(); render(); });
@@ -489,7 +541,7 @@
         chips.push('Deler: ' + esc(state.players[r % n]));
         chips.push('Passen: ' + passInfo(r));
       }
-      chips.push('Tot ' + state.settings.target + ' punten');
+      chips.push(resetMode() ? 'Bij ' + state.settings.target + ' → 0' : 'Tot ' + state.settings.target + ' punten');
       $('infoBar').innerHTML = chips.map(function (c) { return '<span class="chip">' + c + '</span>'; }).join('');
     }
 
@@ -518,16 +570,18 @@
       $('historyPanel').classList.toggle('hidden', !state.rounds.length);
       if (!state.rounds.length) { tbl.innerHTML = ''; return; }
       var head = '<thead><tr><th>#</th>' + state.players.map(function (p) { return '<th title="' + esc(p) + '">' + esc(p) + '</th>'; }).join('') + '</tr></thead>';
+      var info = runInfo();
       var body = '<tbody>' + state.rounds.map(function (r, k) {
-        var run = totals(k + 1);
+        var run = info.runs[k], rst = info.resets[k];
         return '<tr data-k="' + k + '"' + (k === editIndex ? ' class="editing"' : '') + '><td>' + (k + 1) + '</td>' + r.scores.map(function (v, i) {
           var mark = '';
-          if (!r.manual && r.queen === i) mark = ' ♠';
+          if (!r.manual && r.queen === i) mark += ' ♠';
+          if (!r.manual && r.jack === i) mark += ' ♣';
           var moon = r.moon === i && state.settings.moon !== 'none';
-          return '<td' + (moon ? ' class="moon"' : '') + '>' + (moon ? '🌙 ' : '') + v + mark + '<span class="sub">' + run[i] + '</span></td>';
+          return '<td' + (moon ? ' class="moon"' : '') + '>' + (moon ? '🌙 ' : '') + v + mark + (rst[i] ? '<span class="sub reset">↺ 0</span>' : '<span class="sub">' + run[i] + '</span>') + '</td>';
         }).join('') + '</tr>';
       }).join('') + '</tbody>';
-      var t = totals();
+      var t = info.totals;
       var foot = '<tfoot><tr><td>Totaal</td>' + t.map(function (v) { return '<td>' + v + '</td>'; }).join('') + '</tr></tfoot>';
       tbl.innerHTML = head + body + foot;
       Array.prototype.forEach.call(tbl.querySelectorAll('tbody tr'), function (tr) {
@@ -544,23 +598,29 @@
       var wp = $('winnerPanel'); var done = isFinished();
       wp.classList.toggle('hidden', !done);
       $('entryPanel').classList.toggle('hidden', done && editIndex < 0);
+      $('btnFinish').classList.toggle('hidden', !resetMode() || done || editIndex >= 0 || !state.rounds.length);
       if (!done) return;
       var rk = ranking(); var best = rk[0].total;
       var winners = rk.filter(function (p) { return p.total === best; }).map(function (p) { return esc(p.name); });
       wp.innerHTML = '<div class="big">🏆</div><h2>' + winners.join(' & ') + ' ' + (winners.length > 1 ? 'winnen' : 'wint') + '!</h2>' +
         '<p class="muted">Met ' + best + ' punten na ' + state.rounds.length + ' rondes.</p>' +
-        '<div class="row" style="margin-top:14px"><button class="btn ghost" id="btnRematch" type="button">Revanche</button><button class="btn" id="btnNew2" type="button">Nieuw spel</button></div>';
+        '<div class="row" style="margin-top:14px"><button class="btn ghost" id="btnRematch" type="button">Revanche</button><button class="btn" id="btnNew2" type="button">Nieuw spel</button></div>' +
+        (resetMode() ? '<button class="btn ghost small" id="btnResume" type="button" style="margin-top:10px">Toch verder spelen</button>' : '');
+      if (resetMode()) $('btnResume').addEventListener('click', function () { state.finished = false; save(); render(); });
       $('btnRematch').addEventListener('click', function () {
-        state.rounds = []; state.started = Date.now(); save(); editIndex = -1; resetDraft(); render(); toast('Nieuw potje, zelfde spelers');
+        state.rounds = []; state.finished = false; state.started = Date.now(); save(); editIndex = -1; resetDraft(); render(); toast('Nieuw potje, zelfde spelers');
       });
       $('btnNew2').addEventListener('click', function () { $('btnNew').click(); });
     }
 
     function renderRules() {
       var s = state.settings;
-      var items = ['Elke ♥ harten = 1 strafpunt', '♠ Schoppenvrouw = ' + s.queen + ' strafpunten', 'Wie het eerst ' + s.target + ' punten haalt, beëindigt het spel — de laagste score wint'];
-      if (s.moon === 'others') items.push('Alle ' + totalPoints() + ' punten in één ronde? Dan krijgen alle anderen ' + totalPoints() + ' punten en jij 0 🌙');
-      if (s.moon === 'self') items.push('Alle ' + totalPoints() + ' punten in één ronde? Dan gaan er ' + totalPoints() + ' punten van je score af 🌙');
+      var items = ['Elke ♥ harten = 1 strafpunt', '♠ Schoppenvrouw = ' + s.queen + ' strafpunten'];
+      if (jackValue()) items.push('♣ Klaverboer = ' + jackValue() + ' strafpunten');
+      if (resetMode()) items.push('Kom je op ' + s.target + ' punten of meer, dan ga je terug naar 0 ↺ — met “Spel afronden” stop je, de laagste score wint');
+      else items.push('Wie het eerst ' + s.target + ' punten haalt, beëindigt het spel — de laagste score wint');
+      if (s.moon === 'others') items.push('Alle ' + totalPoints() + ' strafpunten in één ronde? Dan krijgen alle anderen ' + totalPoints() + ' punten en jij 0 🌙');
+      if (s.moon === 'self') items.push('Alle ' + totalPoints() + ' strafpunten in één ronde? Dan gaan er ' + totalPoints() + ' punten van je score af 🌙');
       items.push('Met “Vrij invoeren” vul je zelf punten in voor eigen huisregels');
       $('rulesList').innerHTML = items.map(function (i) { return '<li>' + i + '</li>'; }).join('');
     }
@@ -579,6 +639,7 @@
       window.scrollTo(0, 0);
     }
 
+    setDefaultRules();
     show();
   })();
   </script>
