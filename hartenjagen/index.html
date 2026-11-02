@@ -160,6 +160,7 @@
     tbody tr:hover { background: var(--line); }
     tbody tr.editing { background: var(--red-soft); }
     td .sub { display: block; font-size: .7rem; color: var(--muted); }
+    td .sub.reset { color: var(--gold); font-weight: 800; }
     td.moon { color: var(--gold); font-weight: 800; }
     tfoot td { font-weight: 800; border-bottom: 0; border-top: 2px solid var(--ink); }
 
@@ -197,7 +198,7 @@
       <div class="panel">
         <h2>Spelregels</h2>
         <div class="settings-grid">
-          <label class="field"><span>Spel eindigt bij</span>
+          <label class="field"><span>Grens</span>
             <input type="number" id="setTarget" min="10" step="5" value="100" inputmode="numeric">
           </label>
           <label class="field"><span>Schoppenvrouw telt</span>
@@ -207,6 +208,12 @@
             <input type="number" id="setJack" min="0" step="1" value="2" inputmode="numeric">
           </label>
         </div>
+        <label class="field"><span>Wie de grens haalt (100 of meer)</span>
+          <select id="setAtTarget">
+            <option value="reset">Gaat terug naar 0 en speelt door</option>
+            <option value="end">Spel is afgelopen</option>
+          </select>
+        </label>
         <label class="field"><span>Alle punten gehaald (“de maan schieten”)</span>
           <select id="setMoon">
             <option value="others">Alle anderen krijgen de punten</option>
@@ -241,6 +248,7 @@
           <button class="btn ghost hidden" id="btnCancelEdit" type="button">Annuleren</button>
           <button class="btn" id="btnSave" type="button" disabled>Ronde opslaan</button>
         </div>
+        <button class="btn ghost hidden" id="btnFinish" type="button" style="margin-top:10px">🏁 Spel afronden</button>
       </div>
 
       <div class="panel" id="historyPanel">
@@ -313,7 +321,7 @@
       if (isNaN(queen)) queen = 5;
       var jack = Math.max(0, parseInt($('setJack').value, 10));
       if (isNaN(jack)) jack = 2;
-      state = { players: players, rounds: [], settings: { target: target, queen: queen, jack: jack, moon: $('setMoon').value }, started: Date.now() };
+      state = { players: players, rounds: [], settings: { target: target, queen: queen, jack: jack, atTarget: $('setAtTarget').value, moon: $('setMoon').value }, started: Date.now() };
       save(); editIndex = -1; resetDraft(); show();
     });
     $('btnNew').addEventListener('click', function () {
@@ -324,6 +332,7 @@
         $('setQueen').value = state.settings.queen;
         $('setJack').value = jackValue();
         $('setMoon').value = state.settings.moon;
+        $('setAtTarget').value = resetMode() ? 'reset' : 'end';
       }
       state = null;
       try { localStorage.removeItem(KEY); } catch (e) {}
@@ -349,15 +358,28 @@
       return { scores: pts, moon: moon };
     }
 
-    function totals(upto) {
+    function resetMode() { return state.settings.atTarget === 'reset'; }
+
+    // Loopt alle rondes door; bij de terug-naar-0-regel gaat wie de grens haalt naar 0.
+    function runInfo(upto) {
       var t = state.players.map(function () { return 0; });
       var r = state.rounds; var end = upto == null ? r.length : upto;
-      for (var k = 0; k < end; k++) r[k].scores.forEach(function (v, i) { t[i] += v; });
-      return t;
+      var runs = [], resets = [];
+      for (var k = 0; k < end; k++) {
+        var rs = state.players.map(function () { return false; });
+        r[k].scores.forEach(function (v, i) {
+          t[i] += v;
+          if (resetMode() && t[i] >= state.settings.target) { t[i] = 0; rs[i] = true; }
+        });
+        runs.push(t.slice()); resets.push(rs);
+      }
+      return { totals: t, runs: runs, resets: resets };
     }
+    function totals(upto) { return runInfo(upto).totals; }
 
     function isFinished() {
       if (!state.rounds.length) return false;
+      if (resetMode()) return !!state.finished;
       return totals().some(function (v) { return v >= state.settings.target; });
     }
 
@@ -480,10 +502,18 @@
       if (editIndex >= 0) { state.rounds[editIndex] = round; toast('Ronde ' + (editIndex + 1) + ' aangepast'); }
       else {
         state.rounds.push(round);
-        toast(round.moon >= 0 && state.settings.moon !== 'none' ? '🌙 Maan geschoten door ' + state.players[round.moon] + '!' : 'Ronde ' + state.rounds.length + ' opgeslagen');
+        var ri = runInfo(); var rsNames = state.players.filter(function (_, i) { return ri.resets[ri.resets.length - 1][i]; });
+        if (rsNames.length) toast('↺ ' + rsNames.join(' & ') + ' ' + (rsNames.length > 1 ? 'gaan' : 'gaat') + ' terug naar 0!');
+        else toast(round.moon >= 0 && state.settings.moon !== 'none' ? '🌙 Maan geschoten door ' + state.players[round.moon] + '!' : 'Ronde ' + state.rounds.length + ' opgeslagen');
       }
       editIndex = -1; save(); resetDraft(); render();
       if (!wasFinished && isFinished()) window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    $('btnFinish').addEventListener('click', function () {
+      if (!confirm('Spel afronden? De laagste score wint.')) return;
+      state.finished = true; editIndex = -1; save(); resetDraft(); render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
     $('btnCancelEdit').addEventListener('click', function () { editIndex = -1; resetDraft(); render(); });
@@ -503,7 +533,7 @@
         chips.push('Deler: ' + esc(state.players[r % n]));
         chips.push('Passen: ' + passInfo(r));
       }
-      chips.push('Tot ' + state.settings.target + ' punten');
+      chips.push(resetMode() ? 'Bij ' + state.settings.target + ' → 0' : 'Tot ' + state.settings.target + ' punten');
       $('infoBar').innerHTML = chips.map(function (c) { return '<span class="chip">' + c + '</span>'; }).join('');
     }
 
@@ -532,17 +562,18 @@
       $('historyPanel').classList.toggle('hidden', !state.rounds.length);
       if (!state.rounds.length) { tbl.innerHTML = ''; return; }
       var head = '<thead><tr><th>#</th>' + state.players.map(function (p) { return '<th title="' + esc(p) + '">' + esc(p) + '</th>'; }).join('') + '</tr></thead>';
+      var info = runInfo();
       var body = '<tbody>' + state.rounds.map(function (r, k) {
-        var run = totals(k + 1);
+        var run = info.runs[k], rst = info.resets[k];
         return '<tr data-k="' + k + '"' + (k === editIndex ? ' class="editing"' : '') + '><td>' + (k + 1) + '</td>' + r.scores.map(function (v, i) {
           var mark = '';
           if (!r.manual && r.queen === i) mark += ' ♠';
           if (!r.manual && r.jack === i) mark += ' ♣';
           var moon = r.moon === i && state.settings.moon !== 'none';
-          return '<td' + (moon ? ' class="moon"' : '') + '>' + (moon ? '🌙 ' : '') + v + mark + '<span class="sub">' + run[i] + '</span></td>';
+          return '<td' + (moon ? ' class="moon"' : '') + '>' + (moon ? '🌙 ' : '') + v + mark + (rst[i] ? '<span class="sub reset">↺ 0</span>' : '<span class="sub">' + run[i] + '</span>') + '</td>';
         }).join('') + '</tr>';
       }).join('') + '</tbody>';
-      var t = totals();
+      var t = info.totals;
       var foot = '<tfoot><tr><td>Totaal</td>' + t.map(function (v) { return '<td>' + v + '</td>'; }).join('') + '</tr></tfoot>';
       tbl.innerHTML = head + body + foot;
       Array.prototype.forEach.call(tbl.querySelectorAll('tbody tr'), function (tr) {
@@ -559,14 +590,17 @@
       var wp = $('winnerPanel'); var done = isFinished();
       wp.classList.toggle('hidden', !done);
       $('entryPanel').classList.toggle('hidden', done && editIndex < 0);
+      $('btnFinish').classList.toggle('hidden', !resetMode() || done || editIndex >= 0 || !state.rounds.length);
       if (!done) return;
       var rk = ranking(); var best = rk[0].total;
       var winners = rk.filter(function (p) { return p.total === best; }).map(function (p) { return esc(p.name); });
       wp.innerHTML = '<div class="big">🏆</div><h2>' + winners.join(' & ') + ' ' + (winners.length > 1 ? 'winnen' : 'wint') + '!</h2>' +
         '<p class="muted">Met ' + best + ' punten na ' + state.rounds.length + ' rondes.</p>' +
-        '<div class="row" style="margin-top:14px"><button class="btn ghost" id="btnRematch" type="button">Revanche</button><button class="btn" id="btnNew2" type="button">Nieuw spel</button></div>';
+        '<div class="row" style="margin-top:14px"><button class="btn ghost" id="btnRematch" type="button">Revanche</button><button class="btn" id="btnNew2" type="button">Nieuw spel</button></div>' +
+        (resetMode() ? '<button class="btn ghost small" id="btnResume" type="button" style="margin-top:10px">Toch verder spelen</button>' : '');
+      if (resetMode()) $('btnResume').addEventListener('click', function () { state.finished = false; save(); render(); });
       $('btnRematch').addEventListener('click', function () {
-        state.rounds = []; state.started = Date.now(); save(); editIndex = -1; resetDraft(); render(); toast('Nieuw potje, zelfde spelers');
+        state.rounds = []; state.finished = false; state.started = Date.now(); save(); editIndex = -1; resetDraft(); render(); toast('Nieuw potje, zelfde spelers');
       });
       $('btnNew2').addEventListener('click', function () { $('btnNew').click(); });
     }
@@ -575,7 +609,8 @@
       var s = state.settings;
       var items = ['Elke ♥ harten = 1 strafpunt', '♠ Schoppenvrouw = ' + s.queen + ' strafpunten'];
       if (jackValue()) items.push('♣ Klaverboer = ' + jackValue() + ' strafpunten');
-      items.push('Wie het eerst ' + s.target + ' punten haalt, beëindigt het spel — de laagste score wint');
+      if (resetMode()) items.push('Kom je op ' + s.target + ' punten of meer, dan ga je terug naar 0 ↺ — met “Spel afronden” stop je, de laagste score wint');
+      else items.push('Wie het eerst ' + s.target + ' punten haalt, beëindigt het spel — de laagste score wint');
       if (s.moon === 'others') items.push('Alle ' + totalPoints() + ' strafpunten in één ronde? Dan krijgen alle anderen ' + totalPoints() + ' punten en jij 0 🌙');
       if (s.moon === 'self') items.push('Alle ' + totalPoints() + ' strafpunten in één ronde? Dan gaan er ' + totalPoints() + ' punten van je score af 🌙');
       items.push('Met “Vrij invoeren” vul je zelf punten in voor eigen huisregels');
