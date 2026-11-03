@@ -182,7 +182,10 @@
     th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
     th { font-size: .8rem; color: var(--muted); font-weight: 700; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
     td:first-child, th:first-child { text-align: left; color: var(--muted); }
-    tbody tr { cursor: pointer; }
+    tbody tr[data-k] { cursor: pointer; }
+    tr.flip-row td { text-align: center !important; color: var(--gold) !important; font-weight: 800; font-size: .85rem; background: #fff4e0; border-bottom: 0; }
+    .flip-banner { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius); background: #fff4e0; color: #8a5200; font-weight: 600; font-size: .9rem; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) tr.flip-row td, :root:not([data-theme="light"]) .flip-banner { background: #3a2c12; color: #ffc46b; } }
     tbody tr:hover { background: var(--bg); }
     tbody tr.editing { background: #fff4e0; }
     @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) tbody tr.editing { background: #3a2c12; } }
@@ -234,9 +237,9 @@
           <label class="field"><span>Spelen tot (punten)</span>
             <input type="number" id="setTarget" min="10" step="5" value="100" inputmode="numeric">
           </label>
-        <label class="field"><span>Kom je op of boven die score</span>
+        <label class="field"><span>Komt iemand op of boven die score</span>
           <select id="setAtTarget">
-            <option value="reset">Gaat terug naar 0 en speelt door</option>
+            <option value="flip">Omdraaien: iedereen telt af naar 0</option>
             <option value="end">Spel is afgelopen</option>
           </select>
         </label>
@@ -271,6 +274,7 @@
 
       <div class="panel">
         <h2>Stand</h2>
+        <div class="flip-banner hidden" id="flipBanner"></div>
         <div class="standings" id="standings"></div>
       </div>
 
@@ -338,7 +342,7 @@
 
     /* ---------- Setup ---------- */
     // Standaard huisregels: tot 100 (dan terug naar 0), schoppenvrouw 5, klaverboer 2.
-    var DEFAULT_RULES = { target: 100, atTarget: 'reset', hearts: 8, queen: 5, jack: 2, moon: 'others' };
+    var DEFAULT_RULES = { target: 100, atTarget: 'flip', hearts: 8, queen: 5, jack: 2, moon: 'others' };
     function setDefaultRules() {
       $('setTarget').value = DEFAULT_RULES.target;
       $('setAtTarget').value = DEFAULT_RULES.atTarget;
@@ -390,12 +394,13 @@
     function jackValue() { return state.settings.jack || 0; }
     function totalPoints() { return heartsCount() + state.settings.queen + jackValue(); }
 
-    function scoreRound(hearts, queen, jack) {
+    // phase 'down' = omgedraaid (aftellen): dan geen maan-regel, de schutter trekt zelf alle punten af.
+    function scoreRound(hearts, queen, jack, phase) {
       var n = state.players.length, s = state.settings, jv = jackValue();
       var pts = hearts.map(function (h, i) { return h + (i === queen ? s.queen : 0) + (i === jack ? jv : 0); });
       var moon = -1;
       for (var i = 0; i < n; i++) if (hearts[i] === heartsCount() && queen === i && (jv === 0 || jack === i)) moon = i;
-      if (moon >= 0 && s.moon !== 'none') {
+      if (moon >= 0 && s.moon !== 'none' && phase !== 'down') {
         var t = totalPoints();
         pts = pts.map(function (_, i) {
           if (s.moon === 'others') return i === moon ? 0 : t;
@@ -405,28 +410,35 @@
       return { scores: pts, moon: moon };
     }
 
-    function resetMode() { return state.settings.atTarget === 'reset'; }
+    // Standaard: omdraaien. Oude spellen met de vroegere terug-naar-0-regel ('reset') tellen ook als omdraaien.
+    function flipMode() { return state.settings.atTarget !== 'end'; }
 
-    // Loopt alle rondes door; bij de terug-naar-0-regel gaat wie de grens haalt naar 0.
+    // Loopt alle rondes door. Omdraaien: iedereen telt op tot iemand de grens haalt,
+    // daarna gaan voor iedereen de punten eraf. Wie dan op 0 of lager komt, wint.
     function runInfo(upto) {
       var t = state.players.map(function () { return 0; });
       var r = state.rounds; var end = upto == null ? r.length : upto;
-      var runs = [], resets = [];
+      var runs = [], eff = [], phases = [], phase = 'up', flipAt = -1, done = false;
       for (var k = 0; k < end; k++) {
-        var rs = state.players.map(function () { return false; });
-        r[k].scores.forEach(function (v, i) {
-          t[i] += v;
-          if (resetMode() && t[i] >= state.settings.target) { t[i] = 0; rs[i] = true; }
-        });
-        runs.push(t.slice()); resets.push(rs);
+        var rd = r[k];
+        var raw = (!rd.manual && rd.hearts) ? scoreRound(rd.hearts, rd.queen, rd.jack, phase).scores : rd.scores;
+        var sign = phase === 'down' ? -1 : 1;
+        var e = raw.map(function (v) { return v * sign; });
+        e.forEach(function (v, i) { t[i] += v; });
+        phases.push(phase); eff.push(e); runs.push(t.slice());
+        if (flipMode()) {
+          if (phase === 'up' && t.some(function (v) { return v >= state.settings.target; })) { phase = 'down'; flipAt = k; }
+          else if (phase === 'down' && t.some(function (v) { return v <= 0; })) done = true;
+        }
       }
-      return { totals: t, runs: runs, resets: resets };
+      return { totals: t, runs: runs, eff: eff, phases: phases, phase: phase, flipAt: flipAt, done: done };
     }
     function totals(upto) { return runInfo(upto).totals; }
+    function currentPhase() { return runInfo(editIndex >= 0 ? editIndex : null).phase; }
 
     function isFinished() {
       if (!state.rounds.length) return false;
-      if (resetMode()) return !!state.finished;
+      if (flipMode()) return !!state.finished || runInfo().done;
       return totals().some(function (v) { return v >= state.settings.target; });
     }
 
@@ -466,12 +478,13 @@
       $('entryTitle').textContent = (editIndex >= 0 ? 'Ronde ' + roundNo + ' aanpassen' : 'Ronde ' + roundNo);
       $('manualToggle').checked = draft.isManual;
       $('entryHint').innerHTML = draft.isManual
-        ? 'Vul per speler de punten van deze ronde in (eigen huisregels).'
+        ? 'Vul per speler de punten van deze ronde in (eigen huisregels).' + (currentPhase() === 'down' ? ' <b>Omgedraaid:</b> deze punten gaan eraf.' : '')
         : 'Vul per speler het aantal harten in (of gebruik − en +) en tik op <b>♠V</b> bij wie de schoppenvrouw heeft' + (jackValue() ? ' en op <b>♣B</b> bij wie de klaverboer heeft.' : '.');
       $('btnCancelEdit').classList.toggle('hidden', editIndex < 0);
       $('btnSave').textContent = editIndex >= 0 ? 'Wijziging opslaan' : 'Ronde opslaan';
 
-      var preview = draft.isManual ? null : scoreRound(draft.hearts, draft.queen, draft.jack);
+      var phaseNow = currentPhase();
+      var preview = draft.isManual ? null : scoreRound(draft.hearts, draft.queen, draft.jack, phaseNow);
       state.players.forEach(function (name, i) {
         var d = document.createElement('div'); d.className = 'entry-player';
         if (draft.isManual) {
@@ -483,7 +496,7 @@
           inp.addEventListener('focus', function (e) { e.target.select(); });
         } else {
           var p = preview.scores[i];
-          d.innerHTML = '<div><div class="nm">' + esc(name) + '</div><div class="pts">' + (p > 0 ? '+' : '') + p + ' punten</div></div>' +
+          d.innerHTML = '<div><div class="nm">' + esc(name) + '</div><div class="pts">' + fmtPts(p, phaseNow) + '</div></div>' +
             '<div class="stepper"><button type="button" aria-label="Minder">−</button><span class="hv"><input type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="' + heartsCount() + '" class="hearts-input" aria-label="Aantal harten ' + esc(name) + '" value="' + draft.hearts[i] + '"><i>♥</i></span><button type="button" aria-label="Meer">+</button></div>' +
             '<button type="button" class="queen' + (draft.queen === i ? ' on' : '') + '" aria-label="Schoppenvrouw" aria-pressed="' + (draft.queen === i) + '">♠V</button>' +
             (jackValue() ? '<button type="button" class="queen jack' + (draft.jack === i ? ' on' : '') + '" aria-label="Klaverboer" aria-pressed="' + (draft.jack === i) + '">♣B</button>' : '');
@@ -519,10 +532,16 @@
       updateStatus(preview);
     }
 
+    function fmtPts(p, phase) {
+      var v = phase === 'down' ? -p : p;
+      return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v) + ' punten';
+    }
+
     function refreshPoints() {
-      var preview = scoreRound(draft.hearts, draft.queen, draft.jack);
+      var ph = currentPhase();
+      var preview = scoreRound(draft.hearts, draft.queen, draft.jack, ph);
       var pts = $('entryRows').querySelectorAll('.pts');
-      preview.scores.forEach(function (p, i) { if (pts[i]) pts[i].textContent = (p > 0 ? '+' : '') + p + ' punten'; });
+      preview.scores.forEach(function (p, i) { if (pts[i]) pts[i].textContent = fmtPts(p, ph); });
       updateStatus(preview);
     }
 
@@ -540,7 +559,7 @@
         if (jackValue() && draft.jack < 0) parts.push('wie had de ♣ boer?');
         if (ok) {
           msg = '✓ Klaar om op te slaan';
-          if (preview && preview.moon >= 0) msg = '🌙 ' + state.players[preview.moon] + ' heeft alle punten gehaald!';
+          if (preview && preview.moon >= 0 && currentPhase() !== 'down') msg = '🌙 ' + state.players[preview.moon] + ' heeft alle punten gehaald!';
         } else {
           msg = parts.join(' · ');
           msg = msg.charAt(0).toUpperCase() + msg.slice(1);
@@ -569,12 +588,14 @@
         round = { scores: r.scores, hearts: draft.hearts.slice(), queen: draft.queen, jack: draft.jack, moon: r.moon };
       }
       var wasFinished = isFinished();
+      var flipBefore = runInfo().flipAt;
       if (editIndex >= 0) { state.rounds[editIndex] = round; toast('Ronde ' + (editIndex + 1) + ' aangepast'); }
       else {
         state.rounds.push(round);
-        var ri = runInfo(); var rsNames = state.players.filter(function (_, i) { return ri.resets[ri.resets.length - 1][i]; });
-        if (rsNames.length) toast('↺ ' + rsNames.join(' & ') + ' ' + (rsNames.length > 1 ? 'gaan' : 'gaat') + ' terug naar 0!');
-        else toast(round.moon >= 0 && state.settings.moon !== 'none' ? '🌙 Maan geschoten door ' + state.players[round.moon] + '!' : 'Ronde ' + state.rounds.length + ' opgeslagen');
+        var ri = runInfo();
+        if (ri.flipAt >= 0 && flipBefore < 0) toast('⇩ Omgedraaid! Iedereen telt nu af naar 0');
+        else if (ri.done) toast('🏆 Er is een winnaar!');
+        else toast(round.moon >= 0 && state.settings.moon !== 'none' && ri.phases[ri.phases.length - 1] === 'up' ? '🌙 Maan geschoten door ' + state.players[round.moon] + '!' : 'Ronde ' + state.rounds.length + ' opgeslagen');
       }
       editIndex = -1; save(); resetDraft(); render();
       if (!wasFinished && isFinished()) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -603,7 +624,8 @@
         chips.push('Deler: ' + esc(state.players[r % n]));
         chips.push('Passen: ' + passInfo(r));
       }
-      chips.push(resetMode() ? 'Bij ' + state.settings.target + ' → 0' : 'Tot ' + state.settings.target + ' punten');
+      if (flipMode()) chips.push(runInfo().phase === 'down' ? '⇩ Aftellen naar 0' : '⇧ Optellen tot ' + state.settings.target);
+      else chips.push('Tot ' + state.settings.target + ' punten');
       $('infoBar').innerHTML = chips.map(function (c) { return '<span class="chip">' + c + '</span>'; }).join('');
     }
 
@@ -615,12 +637,15 @@
 
     function renderStandings() {
       var rk = ranking(); var target = state.settings.target;
+      var info = runInfo(); var down = info.flipAt >= 0;
+      var fb = $('flipBanner'); fb.classList.toggle('hidden', !down);
+      if (down) fb.innerHTML = '⇩ <b>Omgedraaid!</b> Iedereen telt nu af vanaf zijn eigen stand. Veel punten halen is nu goed — wie het eerst op 0 of lager komt, wint.';
       var lowest = rk[0].total; var anyRounds = state.rounds.length > 0;
       var pos = 0, prev = null;
       $('standings').innerHTML = rk.map(function (p, idx) {
         if (p.total !== prev) { pos = idx + 1; prev = p.total; }
         var pct = Math.max(0, Math.min(100, p.total / target * 100));
-        var cls = 'stand' + (anyRounds && p.total === lowest ? ' lead' : '') + (p.total >= target * 0.8 ? ' danger' : '');
+        var cls = 'stand' + (anyRounds && p.total === lowest ? ' lead' : '') + (!down && p.total >= target * 0.8 ? ' danger' : '');
         return '<div class="' + cls + '"><div class="pos">' + pos + '</div>' +
           '<div><div class="name">' + esc(p.name) + '</div><div class="bar"><i style="width:' + pct + '%"></i></div></div>' +
           '<div class="total">' + p.total + '</div></div>';
@@ -634,19 +659,21 @@
       var head = '<thead><tr><th>#</th>' + state.players.map(function (p) { return '<th title="' + esc(p) + '">' + esc(p) + '</th>'; }).join('') + '</tr></thead>';
       var info = runInfo();
       var body = '<tbody>' + state.rounds.map(function (r, k) {
-        var run = info.runs[k], rst = info.resets[k];
+        var run = info.runs[k], ev = info.eff[k];
+        var sep = k === info.flipAt ? '<tr class="flip-row"><td colspan="' + (state.players.length + 1) + '">⇩ Omgedraaid — vanaf hier aftellen</td></tr>' : '';
         return '<tr data-k="' + k + '"' + (k === editIndex ? ' class="editing"' : '') + '><td>' + (k + 1) + '</td>' + r.scores.map(function (v, i) {
           var mark = '';
           if (!r.manual && r.queen === i) mark += ' ♠';
           if (!r.manual && r.jack === i) mark += ' ♣';
-          var moon = r.moon === i && state.settings.moon !== 'none';
-          return '<td' + (moon ? ' class="moon"' : '') + '>' + (moon ? '🌙 ' : '') + v + mark + (rst[i] ? '<span class="sub reset">↺ 0</span>' : '<span class="sub">' + run[i] + '</span>') + '</td>';
-        }).join('') + '</tr>';
+          var moon = r.moon === i && state.settings.moon !== 'none' && info.phases[k] === 'up';
+          var shown = ev[i] < 0 ? '−' + Math.abs(ev[i]) : ev[i];
+          return '<td' + (moon ? ' class="moon"' : '') + '>' + (moon ? '🌙 ' : '') + shown + mark + '<span class="sub">' + run[i] + '</span></td>';
+        }).join('') + '</tr>' + sep;
       }).join('') + '</tbody>';
       var t = info.totals;
       var foot = '<tfoot><tr><td>Totaal</td>' + t.map(function (v) { return '<td>' + v + '</td>'; }).join('') + '</tr></tfoot>';
       tbl.innerHTML = head + body + foot;
-      Array.prototype.forEach.call(tbl.querySelectorAll('tbody tr'), function (tr) {
+      Array.prototype.forEach.call(tbl.querySelectorAll('tbody tr[data-k]'), function (tr) {
         tr.addEventListener('click', function () {
           var k = +tr.getAttribute('data-k');
           editIndex = k; resetDraft(state.rounds[k]); render();
@@ -660,15 +687,15 @@
       var wp = $('winnerPanel'); var done = isFinished();
       wp.classList.toggle('hidden', !done);
       $('entryPanel').classList.toggle('hidden', done && editIndex < 0);
-      $('btnFinish').classList.toggle('hidden', !resetMode() || done || editIndex >= 0 || !state.rounds.length);
+      $('btnFinish').classList.toggle('hidden', !flipMode() || done || editIndex >= 0 || !state.rounds.length);
       if (!done) return;
       var rk = ranking(); var best = rk[0].total;
       var winners = rk.filter(function (p) { return p.total === best; }).map(function (p) { return esc(p.name); });
       wp.innerHTML = '<div class="big">🏆</div><div class="tag">En de winnaar is…</div><h2>' + winners.join(' & ') + ' ' + (winners.length > 1 ? 'winnen' : 'wint') + '!</h2>' +
         '<p class="muted">Met ' + best + ' punten na ' + state.rounds.length + ' rondes.</p>' +
         '<div class="row" style="margin-top:14px"><button class="btn ghost" id="btnRematch" type="button">Revanche</button><button class="btn" id="btnNew2" type="button">Nieuw spel</button></div>' +
-        (resetMode() ? '<button class="btn ghost small" id="btnResume" type="button" style="margin-top:10px">Toch verder spelen</button>' : '');
-      if (resetMode()) $('btnResume').addEventListener('click', function () { state.finished = false; save(); render(); });
+        (flipMode() && !runInfo().done ? '<button class="btn ghost small" id="btnResume" type="button" style="margin-top:10px">Toch verder spelen</button>' : '');
+      if ($('btnResume')) $('btnResume').addEventListener('click', function () { state.finished = false; save(); render(); });
       $('btnRematch').addEventListener('click', function () {
         state.rounds = []; state.finished = false; state.started = Date.now(); save(); editIndex = -1; resetDraft(); render(); toast('Nieuw potje, zelfde spelers');
       });
@@ -679,9 +706,9 @@
       var s = state.settings;
       var items = ['Elke ♥ harten = 1 strafpunt (' + heartsCount() + ' harten in het spel)', '♠ Schoppenvrouw = ' + s.queen + ' strafpunten'];
       if (jackValue()) items.push('♣ Klaverboer = ' + jackValue() + ' strafpunten');
-      if (resetMode()) items.push('Kom je op ' + s.target + ' punten of meer, dan ga je terug naar 0 ↺ — met “Spel afronden” stop je, de laagste score wint');
+      if (flipMode()) items.push('Iedereen telt op tot iemand ' + s.target + ' punten of meer heeft. Dan draait het om ⇩: iedereen telt vanaf zijn eigen stand af en nu wil je juist veel punten. Wie het eerst op 0 of lager komt, wint (negatief mag)');
       else items.push('Wie het eerst ' + s.target + ' punten haalt, beëindigt het spel — de laagste score wint');
-      if (s.moon === 'others') items.push('Alle ' + totalPoints() + ' strafpunten in één ronde? Dan krijgen alle anderen ' + totalPoints() + ' punten en jij 0 🌙');
+      if (s.moon === 'others') items.push('Alle ' + totalPoints() + ' strafpunten in één ronde? Dan krijgen alle anderen ' + totalPoints() + ' punten en jij 0 🌙' + (flipMode() ? ' (alleen tijdens het optellen; bij het aftellen haal je ze gewoon zelf van je score af)' : ''));
       if (s.moon === 'self') items.push('Alle ' + totalPoints() + ' strafpunten in één ronde? Dan gaan er ' + totalPoints() + ' punten van je score af 🌙');
       items.push('Met “Vrij invoeren” vul je zelf punten in voor eigen huisregels');
       $('rulesList').innerHTML = items.map(function (i) { return '<li>' + i + '</li>'; }).join('');
