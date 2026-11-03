@@ -191,6 +191,12 @@
     @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) tbody tr.editing { background: #3a2c12; } }
     td .sub { display: block; font-size: .7rem; color: var(--muted); }
     td .sub.reset { color: var(--gold); font-weight: 800; }
+    .moon-box { margin: 14px 0 0; padding: 12px; border-radius: var(--radius); background: #fff4e0; }
+    .moon-box p { margin: 0 0 10px; font-weight: 700; color: #8a5200; font-size: .95rem; }
+    .moon-box .row .btn { font-size: .95rem; padding: 11px 10px; }
+    .moon-box .btn.ghost { background: var(--card); }
+    .moon-box .btn.picked { background: var(--green); color: #fff; border-color: var(--green); }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .moon-box { background: #3a2c12; } :root:not([data-theme="light"]) .moon-box p { color: #ffc46b; } }
     td.moon { color: var(--gold); font-weight: 800; }
     tfoot td { font-weight: 800; color: var(--head); border-bottom: 0; border-top: 3px solid var(--green); }
 
@@ -257,8 +263,7 @@
         </div>
         <label class="field"><span>Alle punten gehaald (“de maan schieten”)</span>
           <select id="setMoon">
-            <option value="others">Alle anderen krijgen de punten</option>
-            <option value="self">Speler krijgt de punten eraf</option>
+            <option value="choose">Kiezen: zelf punten eraf of de anderen erbij</option>
             <option value="none">Geen speciale regel</option>
           </select>
         </label>
@@ -285,6 +290,7 @@
         </div>
         <p class="muted" id="entryHint" style="margin:0 0 4px">Tel per speler de harten en tik op <b>♠V</b> bij wie de schoppenvrouw heeft.</p>
         <div id="entryRows"></div>
+        <div class="moon-box hidden" id="moonBox"></div>
         <div class="entry-status" id="entryStatus"></div>
         <div class="row">
           <button class="btn ghost hidden" id="btnCancelEdit" type="button">Annuleren</button>
@@ -342,7 +348,7 @@
 
     /* ---------- Setup ---------- */
     // Standaard huisregels: tot 100 (dan terug naar 0), schoppenvrouw 5, klaverboer 2.
-    var DEFAULT_RULES = { target: 100, atTarget: 'flip', hearts: 8, queen: 5, jack: 2, moon: 'others' };
+    var DEFAULT_RULES = { target: 100, atTarget: 'flip', hearts: 8, queen: 5, jack: 2, moon: 'choose' };
     function setDefaultRules() {
       $('setTarget').value = DEFAULT_RULES.target;
       $('setAtTarget').value = DEFAULT_RULES.atTarget;
@@ -394,20 +400,29 @@
     function jackValue() { return state.settings.jack || 0; }
     function totalPoints() { return heartsCount() + state.settings.queen + jackValue(); }
 
-    // phase 'down' = omgedraaid (aftellen): dan geen maan-regel, de schutter trekt zelf alle punten af.
-    function scoreRound(hearts, queen, jack, phase) {
+    function moonRule() { return state.settings.moon !== 'none'; }
+    // Oude rondes zonder keuze: volg de vroegere vaste instelling.
+    function legacyMoonChoice() { return state.settings.moon === 'self' ? 'self' : 'others'; }
+
+    // Geeft per speler de verandering van de stand (scores) voor deze ronde.
+    // Gewone ronde: strafpunten erbij (optellen) of eraf (na omdraaien).
+    // Maan (alle punten bij één speler): keuze 'self' = zelf alles eraf, 'others' = de anderen alles erbij;
+    // dat werkt direct op de stand, dus in beide fasen hetzelfde.
+    function scoreRound(hearts, queen, jack, phase, choice) {
       var n = state.players.length, s = state.settings, jv = jackValue();
-      var pts = hearts.map(function (h, i) { return h + (i === queen ? s.queen : 0) + (i === jack ? jv : 0); });
+      var raw = hearts.map(function (h, i) { return h + (i === queen ? s.queen : 0) + (i === jack ? jv : 0); });
       var moon = -1;
       for (var i = 0; i < n; i++) if (hearts[i] === heartsCount() && queen === i && (jv === 0 || jack === i)) moon = i;
-      if (moon >= 0 && s.moon !== 'none' && phase !== 'down') {
+      var sign = phase === 'down' ? -1 : 1;
+      var pts = raw.map(function (v) { return v * sign; });
+      var needsChoice = false;
+      if (moon >= 0 && moonRule()) {
         var t = totalPoints();
-        pts = pts.map(function (_, i) {
-          if (s.moon === 'others') return i === moon ? 0 : t;
-          return i === moon ? -t : 0;
-        });
+        if (choice === 'self') pts = raw.map(function (_, i) { return i === moon ? -t : 0; });
+        else if (choice === 'others') pts = raw.map(function (_, i) { return i === moon ? 0 : t; });
+        else needsChoice = true;
       }
-      return { scores: pts, moon: moon };
+      return { scores: pts, raw: raw, moon: moon, needsChoice: needsChoice };
     }
 
     // Standaard: omdraaien. Oude spellen met de vroegere terug-naar-0-regel ('reset') tellen ook als omdraaien.
@@ -421,9 +436,10 @@
       var runs = [], eff = [], phases = [], phase = 'up', flipAt = -1, done = false;
       for (var k = 0; k < end; k++) {
         var rd = r[k];
-        var raw = (!rd.manual && rd.hearts) ? scoreRound(rd.hearts, rd.queen, rd.jack, phase).scores : rd.scores;
         var sign = phase === 'down' ? -1 : 1;
-        var e = raw.map(function (v) { return v * sign; });
+        var e = (!rd.manual && rd.hearts)
+          ? scoreRound(rd.hearts, rd.queen, rd.jack, phase, rd.moonChoice || legacyMoonChoice()).scores
+          : rd.scores.map(function (v) { return v * sign; });
         e.forEach(function (v, i) { t[i] += v; });
         phases.push(phase); eff.push(e); runs.push(t.slice());
         if (flipMode()) {
@@ -457,19 +473,22 @@
           queen: fromRound.queen != null ? fromRound.queen : -1,
           jack: fromRound.jack != null ? fromRound.jack : -1,
           manual: fromRound.scores.slice(),
+          moonChoice: fromRound.moonChoice || (fromRound.moon >= 0 ? legacyMoonChoice() : null),
           isManual: !!fromRound.manual
         };
       } else {
-        draft = { hearts: new Array(n).fill(0), queen: -1, jack: -1, manual: new Array(n).fill(''), isManual: draft ? draft.isManual : false };
+        draft = { hearts: new Array(n).fill(0), queen: -1, jack: -1, moonChoice: null, manual: new Array(n).fill(''), isManual: draft ? draft.isManual : false };
       }
     }
+
+    function draftPreview() { return scoreRound(draft.hearts, draft.queen, draft.jack, currentPhase(), draft.moonChoice); }
 
     function draftValid() {
       if (draft.isManual) {
         return draft.manual.every(function (v) { return v !== '' && !isNaN(parseInt(v, 10)); });
       }
       var sum = draft.hearts.reduce(function (a, b) { return a + b; }, 0);
-      return sum === heartsCount() && draft.queen >= 0 && (jackValue() === 0 || draft.jack >= 0);
+      return sum === heartsCount() && draft.queen >= 0 && (jackValue() === 0 || draft.jack >= 0) && !draftPreview().needsChoice;
     }
 
     function renderEntry() {
@@ -483,8 +502,7 @@
       $('btnCancelEdit').classList.toggle('hidden', editIndex < 0);
       $('btnSave').textContent = editIndex >= 0 ? 'Wijziging opslaan' : 'Ronde opslaan';
 
-      var phaseNow = currentPhase();
-      var preview = draft.isManual ? null : scoreRound(draft.hearts, draft.queen, draft.jack, phaseNow);
+      var preview = draft.isManual ? null : draftPreview();
       state.players.forEach(function (name, i) {
         var d = document.createElement('div'); d.className = 'entry-player';
         if (draft.isManual) {
@@ -496,7 +514,7 @@
           inp.addEventListener('focus', function (e) { e.target.select(); });
         } else {
           var p = preview.scores[i];
-          d.innerHTML = '<div><div class="nm">' + esc(name) + '</div><div class="pts">' + fmtPts(p, phaseNow) + '</div></div>' +
+          d.innerHTML = '<div><div class="nm">' + esc(name) + '</div><div class="pts">' + fmtPts(p) + '</div></div>' +
             '<div class="stepper"><button type="button" aria-label="Minder">−</button><span class="hv"><input type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="' + heartsCount() + '" class="hearts-input" aria-label="Aantal harten ' + esc(name) + '" value="' + draft.hearts[i] + '"><i>♥</i></span><button type="button" aria-label="Meer">+</button></div>' +
             '<button type="button" class="queen' + (draft.queen === i ? ' on' : '') + '" aria-label="Schoppenvrouw" aria-pressed="' + (draft.queen === i) + '">♠V</button>' +
             (jackValue() ? '<button type="button" class="queen jack' + (draft.jack === i ? ' on' : '') + '" aria-label="Klaverboer" aria-pressed="' + (draft.jack === i) + '">♣B</button>' : '');
@@ -532,20 +550,33 @@
       updateStatus(preview);
     }
 
-    function fmtPts(p, phase) {
-      var v = phase === 'down' ? -p : p;
+    function fmtPts(v) {
       return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v) + ' punten';
     }
 
     function refreshPoints() {
-      var ph = currentPhase();
-      var preview = scoreRound(draft.hearts, draft.queen, draft.jack, ph);
+      var preview = draftPreview();
       var pts = $('entryRows').querySelectorAll('.pts');
-      preview.scores.forEach(function (p, i) { if (pts[i]) pts[i].textContent = fmtPts(p, ph); });
+      preview.scores.forEach(function (p, i) { if (pts[i]) pts[i].textContent = fmtPts(p); });
       updateStatus(preview);
     }
 
+    function renderMoonBox(preview) {
+      var box = $('moonBox');
+      var show = !draft.isManual && preview && preview.moon >= 0 && moonRule();
+      box.classList.toggle('hidden', !show);
+      if (!show) { box.innerHTML = ''; return; }
+      var t = totalPoints(), nm = esc(state.players[preview.moon]);
+      box.innerHTML = '<p>🌙 ' + nm + ' heeft alle punten! Wat kies je?</p><div class="row">' +
+        '<button type="button" class="btn ghost' + (draft.moonChoice === 'self' ? ' picked' : '') + '" data-c="self">' + nm + ' −' + t + '</button>' +
+        '<button type="button" class="btn ghost' + (draft.moonChoice === 'others' ? ' picked' : '') + '" data-c="others">Anderen +' + t + '</button></div>';
+      Array.prototype.forEach.call(box.querySelectorAll('button'), function (b) {
+        b.addEventListener('click', function () { draft.moonChoice = b.getAttribute('data-c'); renderEntry(); });
+      });
+    }
+
     function updateStatus(preview) {
+      renderMoonBox(preview);
       var st = $('entryStatus'); var ok = draftValid();
       var msg;
       if (draft.isManual) {
@@ -557,9 +588,10 @@
         if (left > 0) parts.push('nog ' + left + ' ♥ te verdelen');
         if (draft.queen < 0) parts.push('wie had de ♠ vrouw?');
         if (jackValue() && draft.jack < 0) parts.push('wie had de ♣ boer?');
+        if (preview && preview.needsChoice) parts.push('kies wat er met de maan gebeurt');
         if (ok) {
           msg = '✓ Klaar om op te slaan';
-          if (preview && preview.moon >= 0 && currentPhase() !== 'down') msg = '🌙 ' + state.players[preview.moon] + ' heeft alle punten gehaald!';
+          if (preview && preview.moon >= 0 && moonRule()) msg = '✓ Maan: ' + (draft.moonChoice === 'self' ? state.players[preview.moon] + ' −' + totalPoints() : 'de anderen +' + totalPoints());
         } else {
           msg = parts.join(' · ');
           msg = msg.charAt(0).toUpperCase() + msg.slice(1);
@@ -572,7 +604,7 @@
     $('manualToggle').addEventListener('change', function (e) {
       draft.isManual = e.target.checked;
       if (draft.isManual && draft.hearts.some(function (h) { return h; })) {
-        var pv = scoreRound(draft.hearts, draft.queen, draft.jack).scores;
+        var pv = scoreRound(draft.hearts, draft.queen, draft.jack, 'up').raw;
         draft.manual = pv.map(String);
       }
       renderEntry();
@@ -584,8 +616,9 @@
       if (draft.isManual) {
         round = { scores: draft.manual.map(function (v) { return parseInt(v, 10); }), manual: true };
       } else {
-        var r = scoreRound(draft.hearts, draft.queen, draft.jack);
-        round = { scores: r.scores, hearts: draft.hearts.slice(), queen: draft.queen, jack: draft.jack, moon: r.moon };
+        var r = draftPreview();
+        round = { scores: r.raw, hearts: draft.hearts.slice(), queen: draft.queen, jack: draft.jack, moon: r.moon };
+        if (r.moon >= 0 && moonRule()) round.moonChoice = draft.moonChoice;
       }
       var wasFinished = isFinished();
       var flipBefore = runInfo().flipAt;
@@ -595,7 +628,7 @@
         var ri = runInfo();
         if (ri.flipAt >= 0 && flipBefore < 0) toast('⇩ Omgedraaid! Iedereen telt nu af naar 0');
         else if (ri.done) toast('🏆 Er is een winnaar!');
-        else toast(round.moon >= 0 && state.settings.moon !== 'none' && ri.phases[ri.phases.length - 1] === 'up' ? '🌙 Maan geschoten door ' + state.players[round.moon] + '!' : 'Ronde ' + state.rounds.length + ' opgeslagen');
+        else toast(round.moon >= 0 && moonRule() ? '🌙 Maan geschoten door ' + state.players[round.moon] + '!' : 'Ronde ' + state.rounds.length + ' opgeslagen');
       }
       editIndex = -1; save(); resetDraft(); render();
       if (!wasFinished && isFinished()) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -665,7 +698,7 @@
           var mark = '';
           if (!r.manual && r.queen === i) mark += ' ♠';
           if (!r.manual && r.jack === i) mark += ' ♣';
-          var moon = r.moon === i && state.settings.moon !== 'none' && info.phases[k] === 'up';
+          var moon = !r.manual && r.moon === i && moonRule();
           var shown = ev[i] < 0 ? '−' + Math.abs(ev[i]) : ev[i];
           return '<td' + (moon ? ' class="moon"' : '') + '>' + (moon ? '🌙 ' : '') + shown + mark + '<span class="sub">' + run[i] + '</span></td>';
         }).join('') + '</tr>' + sep;
@@ -708,8 +741,7 @@
       if (jackValue()) items.push('♣ Klaverboer = ' + jackValue() + ' strafpunten');
       if (flipMode()) items.push('Iedereen telt op tot iemand ' + s.target + ' punten of meer heeft. Dan draait het om ⇩: iedereen telt vanaf zijn eigen stand af en nu wil je juist veel punten. Wie het eerst op 0 of lager komt, wint (negatief mag)');
       else items.push('Wie het eerst ' + s.target + ' punten haalt, beëindigt het spel — de laagste score wint');
-      if (s.moon === 'others') items.push('Alle ' + totalPoints() + ' strafpunten in één ronde? Dan krijgen alle anderen ' + totalPoints() + ' punten en jij 0 🌙' + (flipMode() ? ' (alleen tijdens het optellen; bij het aftellen haal je ze gewoon zelf van je score af)' : ''));
-      if (s.moon === 'self') items.push('Alle ' + totalPoints() + ' strafpunten in één ronde? Dan gaan er ' + totalPoints() + ' punten van je score af 🌙');
+      if (moonRule()) items.push('Alle ' + totalPoints() + ' strafpunten in één ronde (de maan 🌙)? Dan kies je: zelf ' + totalPoints() + ' punten eraf, óf alle anderen ' + totalPoints() + ' punten erbij');
       items.push('Met “Vrij invoeren” vul je zelf punten in voor eigen huisregels');
       $('rulesList').innerHTML = items.map(function (i) { return '<li>' + i + '</li>'; }).join('');
     }
