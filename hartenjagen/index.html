@@ -108,7 +108,8 @@
     .player-input { display: flex; gap: 8px; margin-bottom: 8px; }
     .player-input input { flex: 1; }
     .player-input button { flex: 0 0 44px; }
-    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .settings-grid label.field span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     /* Scorebord */
     .info-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -235,10 +236,13 @@
         </label>
 
         <div class="settings-grid">
-          <label class="field"><span>Schoppenvrouw telt</span>
+          <label class="field"><span>Aantal ♥</span>
+            <input type="number" id="setHearts" min="1" max="13" step="1" value="8" inputmode="numeric">
+          </label>
+          <label class="field"><span>♠ Vrouw telt</span>
             <input type="number" id="setQueen" min="0" step="1" value="5" inputmode="numeric">
           </label>
-          <label class="field"><span>Klaverboer telt</span>
+          <label class="field"><span>♣ Boer telt</span>
             <input type="number" id="setJack" min="0" step="1" value="2" inputmode="numeric">
           </label>
         </div>
@@ -303,7 +307,8 @@
   (function () {
     'use strict';
     var KEY = 'hartenjagen-v1';
-    var HEARTS = 13;
+    // Aantal harten in het spel (kort spel met 32 kaarten = 8). Oude spellen zonder instelling: 8.
+    function heartsCount() { return (state && state.settings.hearts) || DEFAULT_RULES.hearts; }
     var $ = function (id) { return document.getElementById(id); };
 
     var state = load() || null;
@@ -327,10 +332,11 @@
 
     /* ---------- Setup ---------- */
     // Standaard huisregels: tot 100 (dan terug naar 0), schoppenvrouw 5, klaverboer 2.
-    var DEFAULT_RULES = { target: 100, atTarget: 'reset', queen: 5, jack: 2, moon: 'others' };
+    var DEFAULT_RULES = { target: 100, atTarget: 'reset', hearts: 8, queen: 5, jack: 2, moon: 'others' };
     function setDefaultRules() {
       $('setTarget').value = DEFAULT_RULES.target;
       $('setAtTarget').value = DEFAULT_RULES.atTarget;
+      $('setHearts').value = DEFAULT_RULES.hearts;
       $('setQueen').value = DEFAULT_RULES.queen;
       $('setJack').value = DEFAULT_RULES.jack;
       $('setMoon').value = DEFAULT_RULES.moon;
@@ -355,11 +361,12 @@
     $('btnStart').addEventListener('click', function () {
       var players = setupNames.map(function (n, i) { return n.trim() || ('Speler ' + (i + 1)); });
       var target = Math.max(10, parseInt($('setTarget').value, 10) || 100);
+      var hearts = Math.min(13, Math.max(1, parseInt($('setHearts').value, 10) || DEFAULT_RULES.hearts));
       var queen = Math.max(0, parseInt($('setQueen').value, 10));
       if (isNaN(queen)) queen = 5;
       var jack = Math.max(0, parseInt($('setJack').value, 10));
       if (isNaN(jack)) jack = 2;
-      state = { players: players, rounds: [], settings: { target: target, queen: queen, jack: jack, atTarget: $('setAtTarget').value, moon: $('setMoon').value }, started: Date.now() };
+      state = { players: players, rounds: [], settings: { target: target, hearts: hearts, queen: queen, jack: jack, atTarget: $('setAtTarget').value, moon: $('setMoon').value }, started: Date.now() };
       save(); editIndex = -1; resetDraft(); show();
     });
     $('btnNew').addEventListener('click', function () {
@@ -375,13 +382,13 @@
 
     /* ---------- Scoring ---------- */
     function jackValue() { return state.settings.jack || 0; }
-    function totalPoints() { return HEARTS + state.settings.queen + jackValue(); }
+    function totalPoints() { return heartsCount() + state.settings.queen + jackValue(); }
 
     function scoreRound(hearts, queen, jack) {
       var n = state.players.length, s = state.settings, jv = jackValue();
       var pts = hearts.map(function (h, i) { return h + (i === queen ? s.queen : 0) + (i === jack ? jv : 0); });
       var moon = -1;
-      for (var i = 0; i < n; i++) if (hearts[i] === HEARTS && queen === i && (jv === 0 || jack === i)) moon = i;
+      for (var i = 0; i < n; i++) if (hearts[i] === heartsCount() && queen === i && (jv === 0 || jack === i)) moon = i;
       if (moon >= 0 && s.moon !== 'none') {
         var t = totalPoints();
         pts = pts.map(function (_, i) {
@@ -444,7 +451,7 @@
         return draft.manual.every(function (v) { return v !== '' && !isNaN(parseInt(v, 10)); });
       }
       var sum = draft.hearts.reduce(function (a, b) { return a + b; }, 0);
-      return sum === HEARTS && draft.queen >= 0 && (jackValue() === 0 || draft.jack >= 0);
+      return sum === heartsCount() && draft.queen >= 0 && (jackValue() === 0 || draft.jack >= 0);
     }
 
     function renderEntry() {
@@ -479,7 +486,7 @@
           b[0].addEventListener('click', function () { if (draft.hearts[i] > 0) { draft.hearts[i]--; renderEntry(); } });
           b[1].addEventListener('click', function () {
             var sum = draft.hearts.reduce(function (a, c) { return a + c; }, 0);
-            if (sum < HEARTS) { draft.hearts[i]++; renderEntry(); }
+            if (sum < heartsCount()) { draft.hearts[i]++; renderEntry(); }
           });
           d.querySelector('.queen:not(.jack)').addEventListener('click', function () { draft.queen = draft.queen === i ? -1 : i; renderEntry(); });
           var jb = d.querySelector('.jack');
@@ -498,7 +505,7 @@
         msg = ok ? '✓ Klaar om op te slaan' : 'Nog ' + (state.players.length - filled) + ' speler(s) invullen';
       } else {
         var sum = draft.hearts.reduce(function (a, b) { return a + b; }, 0);
-        var left = HEARTS - sum; var parts = [];
+        var left = heartsCount() - sum; var parts = [];
         if (left > 0) parts.push('nog ' + left + ' ♥ te verdelen');
         if (draft.queen < 0) parts.push('wie had de ♠ vrouw?');
         if (jackValue() && draft.jack < 0) parts.push('wie had de ♣ boer?');
@@ -641,7 +648,7 @@
 
     function renderRules() {
       var s = state.settings;
-      var items = ['Elke ♥ harten = 1 strafpunt', '♠ Schoppenvrouw = ' + s.queen + ' strafpunten'];
+      var items = ['Elke ♥ harten = 1 strafpunt (' + heartsCount() + ' harten in het spel)', '♠ Schoppenvrouw = ' + s.queen + ' strafpunten'];
       if (jackValue()) items.push('♣ Klaverboer = ' + jackValue() + ' strafpunten');
       if (resetMode()) items.push('Kom je op ' + s.target + ' punten of meer, dan ga je terug naar 0 ↺ — met “Spel afronden” stop je, de laagste score wint');
       else items.push('Wie het eerst ' + s.target + ' punten haalt, beëindigt het spel — de laagste score wint');
