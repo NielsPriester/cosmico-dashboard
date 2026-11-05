@@ -207,8 +207,16 @@
     .winner h2 { font-size: 1.6rem; margin: 2px 0 10px; }
     .winner h2::after { margin: 10px auto 0; }
 
+    .undo-fab {
+      position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 9;
+      display: inline-flex; align-items: center; gap: 6px; padding: 13px 18px; border-radius: 999px; border: 0;
+      background: var(--green); color: #fff; font: inherit; font-weight: 700; font-size: 1rem; cursor: pointer;
+      box-shadow: 0 6px 18px rgba(0,0,0,.25);
+    }
+    .undo-fab:active { transform: scale(.96); }
+    body.has-undo { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
     .toast {
-      position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(calc(100% + 60px));
+      position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(calc(100% + 140px));
       background: var(--green); color: #fff; padding: 12px 18px; border-radius: 6px; font-weight: 600;
       box-shadow: 0 6px 20px rgba(0,0,0,.2); transition: transform .25s ease, visibility .25s; visibility: hidden; z-index: 10; max-width: calc(100% - 32px); text-align: center;
     }
@@ -317,6 +325,7 @@
     </section>
   </div>
 
+  <button class="undo-fab hidden" id="btnStepBack" type="button" aria-label="Stap terug">↶ Stap terug</button>
   <div class="toast" id="toast"></div>
 
   <script>
@@ -338,6 +347,34 @@
     function save() {
       try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
     }
+    /* ---------- Stap terug ---------- */
+    // Voor elke wijziging (invoer of opgeslagen ronde) bewaren we een kopie van alles,
+    // zodat "Stap terug" telkens precies één handeling terugdraait. Blijft bewaard na herladen.
+    var UNDO_KEY = 'hartenjagen-undo-v1', UNDO_MAX = 60;
+    var undoStack = (function () { try { var u = JSON.parse(localStorage.getItem(UNDO_KEY)); return Array.isArray(u) ? u : []; } catch (e) { return []; } })();
+    function saveUndo() { try { localStorage.setItem(UNDO_KEY, JSON.stringify(undoStack)); } catch (e) {} }
+    function checkpoint(label) {
+      undoStack.push(JSON.stringify({ state: state, draft: draft, editIndex: editIndex, label: label }));
+      if (undoStack.length > UNDO_MAX) undoStack.shift();
+      saveUndo(); updateUndoBtn();
+    }
+    function updateUndoBtn() {
+      var has = undoStack.length > 0;
+      $('btnStepBack').classList.toggle('hidden', !has);
+      document.body.classList.toggle('has-undo', has);
+    }
+    function stepBack() {
+      if (!undoStack.length) return;
+      var snap = JSON.parse(undoStack.pop()); saveUndo();
+      var wasInGame = !!state;
+      state = snap.state; draft = snap.draft; editIndex = snap.editIndex;
+      if (state) save(); else { try { localStorage.removeItem(KEY); } catch (e) {} }
+      if (!!state !== wasInGame) show();
+      else if (state) render();
+      updateUndoBtn();
+      toast('↶ Teruggezet: ' + snap.label);
+    }
+
     function esc(s) {
       return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
     }
@@ -382,6 +419,7 @@
       if (isNaN(queen)) queen = 5;
       var jack = Math.max(0, parseInt($('setJack').value, 10));
       if (isNaN(jack)) jack = 2;
+      checkpoint('spel gestart');
       state = { players: players, rounds: [], settings: { target: target, hearts: hearts, queen: queen, jack: jack, atTarget: $('setAtTarget').value, moon: $('setMoon').value }, started: Date.now() };
       save(); editIndex = -1; resetDraft(); show();
     });
@@ -389,6 +427,7 @@
       if (state && state.rounds.length && !confirm('Huidig spel stoppen en een nieuw spel beginnen?')) return;
       if (state) {
         setupNames = state.players.slice();
+        checkpoint('nieuw spel');
       }
       state = null;
       setDefaultRules();
@@ -510,8 +549,9 @@
           d.innerHTML = '<div class="nm">' + esc(name) + '</div>' +
             '<input type="number" inputmode="numeric" class="manual-input" placeholder="0" value="' + esc(draft.manual[i]) + '">';
           var inp = d.querySelector('input');
-          inp.addEventListener('input', function (e) { draft.manual[i] = e.target.value; updateStatus(); });
-          inp.addEventListener('focus', function (e) { e.target.select(); });
+          var mPending = true;
+          inp.addEventListener('input', function (e) { if (mPending) { checkpoint('punten ' + name); mPending = false; } draft.manual[i] = e.target.value; updateStatus(); });
+          inp.addEventListener('focus', function (e) { mPending = true; e.target.select(); });
         } else {
           var p = preview.scores[i];
           d.innerHTML = '<div><div class="nm">' + esc(name) + '</div><div class="pts">' + fmtPts(p) + '</div></div>' +
@@ -522,9 +562,11 @@
           // Zelf invullen: bijwerken zonder de rij opnieuw te tekenen, zodat het toetsenbord open blijft.
           var hi = d.querySelector('.hearts-input');
           var selectAll = function (e) { var t = e.target; setTimeout(function () { try { t.select(); } catch (x) {} }, 0); };
-          hi.addEventListener('focus', selectAll);
+          var hPending = true;
+          hi.addEventListener('focus', function (e) { hPending = true; selectAll(e); });
           hi.addEventListener('click', selectAll);
           hi.addEventListener('input', function (e) {
+            if (hPending) { checkpoint('harten ' + name); hPending = false; }
             var others = draft.hearts.reduce(function (a, c, k) { return a + (k === i ? 0 : c); }, 0);
             var max = heartsCount() - others;
             var v = parseInt(e.target.value, 10);
@@ -536,14 +578,14 @@
           });
           hi.addEventListener('blur', function (e) { e.target.value = draft.hearts[i]; });
           var b = d.querySelectorAll('.stepper button');
-          b[0].addEventListener('click', function () { if (draft.hearts[i] > 0) { draft.hearts[i]--; renderEntry(); } });
+          b[0].addEventListener('click', function () { if (draft.hearts[i] > 0) { checkpoint('− harten ' + name); draft.hearts[i]--; renderEntry(); } });
           b[1].addEventListener('click', function () {
             var sum = draft.hearts.reduce(function (a, c) { return a + c; }, 0);
-            if (sum < heartsCount()) { draft.hearts[i]++; renderEntry(); }
+            if (sum < heartsCount()) { checkpoint('+ harten ' + name); draft.hearts[i]++; renderEntry(); }
           });
-          d.querySelector('.queen:not(.jack)').addEventListener('click', function () { draft.queen = draft.queen === i ? -1 : i; renderEntry(); });
+          d.querySelector('.queen:not(.jack)').addEventListener('click', function () { checkpoint('♠ vrouw ' + name); draft.queen = draft.queen === i ? -1 : i; renderEntry(); });
           var jb = d.querySelector('.jack');
-          if (jb) jb.addEventListener('click', function () { draft.jack = draft.jack === i ? -1 : i; renderEntry(); });
+          if (jb) jb.addEventListener('click', function () { checkpoint('♣ boer ' + name); draft.jack = draft.jack === i ? -1 : i; renderEntry(); });
         }
         rows.appendChild(d);
       });
@@ -571,7 +613,7 @@
         '<button type="button" class="btn ghost' + (draft.moonChoice === 'self' ? ' picked' : '') + '" data-c="self">' + nm + ' −' + t + '</button>' +
         '<button type="button" class="btn ghost' + (draft.moonChoice === 'others' ? ' picked' : '') + '" data-c="others">Anderen +' + t + '</button></div>';
       Array.prototype.forEach.call(box.querySelectorAll('button'), function (b) {
-        b.addEventListener('click', function () { draft.moonChoice = b.getAttribute('data-c'); renderEntry(); });
+        b.addEventListener('click', function () { checkpoint('maankeuze'); draft.moonChoice = b.getAttribute('data-c'); renderEntry(); });
       });
     }
 
@@ -602,6 +644,7 @@
     }
 
     $('manualToggle').addEventListener('change', function (e) {
+      checkpoint('vrij invoeren ' + (e.target.checked ? 'aan' : 'uit'));
       draft.isManual = e.target.checked;
       if (draft.isManual && draft.hearts.some(function (h) { return h; })) {
         var pv = scoreRound(draft.hearts, draft.queen, draft.jack, 'up').raw;
@@ -620,6 +663,7 @@
         round = { scores: r.raw, hearts: draft.hearts.slice(), queen: draft.queen, jack: draft.jack, moon: r.moon };
         if (r.moon >= 0 && moonRule()) round.moonChoice = draft.moonChoice;
       }
+      checkpoint(editIndex >= 0 ? 'ronde ' + (editIndex + 1) + ' aangepast' : 'ronde ' + (state.rounds.length + 1) + ' opgeslagen');
       var wasFinished = isFinished();
       var flipBefore = runInfo().flipAt;
       if (editIndex >= 0) { state.rounds[editIndex] = round; toast('Ronde ' + (editIndex + 1) + ' aangepast'); }
@@ -636,15 +680,17 @@
 
     $('btnFinish').addEventListener('click', function () {
       if (!confirm('Spel afronden? De laagste score wint.')) return;
+      checkpoint('spel afgerond');
       state.finished = true; editIndex = -1; save(); resetDraft(); render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    $('btnCancelEdit').addEventListener('click', function () { editIndex = -1; resetDraft(); render(); });
+    $('btnCancelEdit').addEventListener('click', function () { checkpoint('aanpassen geannuleerd'); editIndex = -1; resetDraft(); render(); });
 
     $('btnUndo').addEventListener('click', function () {
       if (!state.rounds.length) return;
       if (!confirm('Ronde ' + state.rounds.length + ' wissen?')) return;
+      checkpoint('ronde ' + state.rounds.length + ' gewist');
       state.rounds.pop(); editIndex = -1; save(); resetDraft(); render(); toast('Laatste ronde gewist');
     });
 
@@ -709,6 +755,7 @@
       Array.prototype.forEach.call(tbl.querySelectorAll('tbody tr[data-k]'), function (tr) {
         tr.addEventListener('click', function () {
           var k = +tr.getAttribute('data-k');
+          checkpoint('ronde ' + (k + 1) + ' openen');
           editIndex = k; resetDraft(state.rounds[k]); render();
           $('entryPanel').classList.remove('hidden');
           $('entryPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -728,9 +775,9 @@
         '<p class="muted">Met ' + best + ' punten na ' + state.rounds.length + ' rondes.</p>' +
         '<div class="row" style="margin-top:14px"><button class="btn ghost" id="btnRematch" type="button">Revanche</button><button class="btn" id="btnNew2" type="button">Nieuw spel</button></div>' +
         (flipMode() && !runInfo().done ? '<button class="btn ghost small" id="btnResume" type="button" style="margin-top:10px">Toch verder spelen</button>' : '');
-      if ($('btnResume')) $('btnResume').addEventListener('click', function () { state.finished = false; save(); render(); });
+      if ($('btnResume')) $('btnResume').addEventListener('click', function () { checkpoint('verder spelen'); state.finished = false; save(); render(); });
       $('btnRematch').addEventListener('click', function () {
-        state.rounds = []; state.finished = false; state.started = Date.now(); save(); editIndex = -1; resetDraft(); render(); toast('Nieuw potje, zelfde spelers');
+        checkpoint('revanche'); state.rounds = []; state.finished = false; state.started = Date.now(); save(); editIndex = -1; resetDraft(); render(); toast('Nieuw potje, zelfde spelers');
       });
       $('btnNew2').addEventListener('click', function () { $('btnNew').click(); });
     }
@@ -760,8 +807,11 @@
       window.scrollTo(0, 0);
     }
 
+    $('btnStepBack').addEventListener('click', stepBack);
+
     setDefaultRules();
     show();
+    updateUndoBtn();
   })();
   </script>
 </body>
