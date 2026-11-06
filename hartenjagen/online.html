@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1d5b14">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Hartenjagen">
+  <title>Hartenjagen Online</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♥️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&family=Kaushan+Script&display=swap">
+  <style>
+    :root {
+      --green: #1d5b14; --green-soft: #e7f1e4; --orange: #ff9b0f; --orange-2: #ffae3d;
+      --bg: #f4f4f4; --card: #ffffff; --ink: #3a3a3a; --head: #444444; --muted: #8a8a8a; --line: #e4e4e4;
+      --red: #c62828; --red-soft: #fdecec; --good: #1d5b14; --good-soft: #e7f1e4; --gold: #e08a00; --gold-soft: #fff4e0;
+      --felt: #2a6b20; --radius: 4px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111511; --card: #1b201b; --ink: #e9ece8; --head: #f1f3f0; --muted: #9aa39a; --line: #2e352e;
+        --green-soft: #1c2f19; --red: #ef5350; --red-soft: #3a1717; --good: #7cc56f; --good-soft: #1c2f19; --gold-soft: #3a2c12;
+        --felt: #1d4a17;
+      }
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; }
+    body { font-family: "Open Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+    header.top { background: var(--green); color: #fff; padding-top: env(safe-area-inset-top); margin-bottom: 14px; }
+    header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; padding-bottom: 14px; }
+    header.top .brand { display: flex; flex-direction: column; line-height: 1; }
+    header.top .tagline { font-family: "Kaushan Script", cursive; font-size: 1.05rem; color: rgba(255,255,255,.85); margin-bottom: 4px; }
+    header.top h1 { margin: 0; font-size: clamp(1.4rem, 7vw, 1.9rem); font-weight: 800; text-transform: uppercase; display: flex; gap: .3em; align-items: center; }
+    header.top h1 .suit { color: var(--orange); }
+    .pill { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 999px; padding: 10px 14px; font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer; white-space: nowrap; text-decoration: none; }
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 16px; margin-bottom: 14px; }
+    .panel h2 { margin: 0 0 14px; font-size: 1.1rem; font-weight: 700; color: var(--head); text-transform: uppercase; letter-spacing: .02em; }
+    .panel h2::after { content: ""; display: block; width: 44px; height: 4px; background: var(--green); margin-top: 8px; }
+    .muted { color: var(--muted); font-size: .9rem; }
+    label.field { display: block; margin-bottom: 12px; }
+    label.field span { display: block; font-size: .85rem; font-weight: 600; color: var(--head); margin-bottom: 5px; }
+    input[type=text] { width: 100%; font: inherit; font-size: 1rem; padding: 11px 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+    input.code { text-transform: uppercase; letter-spacing: .25em; font-weight: 800; text-align: center; font-size: 1.3rem; }
+    input:focus { outline: 2px solid var(--green); border-color: transparent; }
+    .row { display: flex; gap: 10px; align-items: center; }
+    .row > * { flex: 1; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-weight: 600; font-size: 1.05rem; padding: 13px 18px; border-radius: 6px; border: 0; cursor: pointer; background: linear-gradient(180deg, var(--orange-2), var(--orange)); color: #fff; width: 100%; box-shadow: 0 2px 0 rgba(0,0,0,.08); text-decoration: none; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn.ghost { background: transparent; color: var(--green); border: 1.5px solid var(--green); box-shadow: none; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.ghost { color: var(--good); border-color: var(--good); } }
+    .btn.small { padding: 8px 12px; font-size: .9rem; width: auto; }
+    .or { text-align: center; color: var(--muted); margin: 14px 0; font-size: .9rem; }
+    .hidden { display: none !important; }
+
+    .roomcode { font-size: 2.4rem; font-weight: 800; letter-spacing: .25em; text-align: center; color: var(--green); margin: 4px 0 10px; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .roomcode { color: var(--good); } }
+    .plist { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+    .plist li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); font-weight: 700; color: var(--head); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--good); flex: 0 0 10px; }
+    .dot.off { background: var(--muted); }
+    .tag { margin-left: auto; font-size: .75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+
+    .status { position: sticky; top: 0; z-index: 5; margin: -14px 0 14px; padding: 8px 16px; text-align: center; font-size: .85rem; font-weight: 700; background: var(--gold-soft); color: #8a5200; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .status { color: #ffc46b; } }
+
+    /* Spelers bovenaan */
+    .seats { display: grid; grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
+    .seat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 8px; position: relative; min-width: 0; }
+    .seat.turn { border-color: var(--orange); box-shadow: 0 0 0 2px var(--orange) inset; }
+    .seat.me { background: var(--green-soft); }
+    .seat .nm { font-weight: 700; color: var(--head); font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .seat .sc { display: flex; justify-content: space-between; align-items: baseline; margin-top: 2px; }
+    .seat .tot { font-size: 1.25rem; font-weight: 800; color: var(--head); }
+    .seat .rp { font-size: .8rem; color: var(--red); font-weight: 700; }
+    .seat .deal { position: absolute; top: -8px; right: 6px; background: var(--green); color: #fff; font-size: .65rem; font-weight: 800; border-radius: 999px; padding: 2px 6px; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .chip { background: var(--card); color: var(--green); border: 1px solid var(--line); padding: 5px 11px; border-radius: 999px; font-size: .8rem; font-weight: 600; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chip { color: var(--good); } }
+    .chip.down { background: var(--gold-soft); color: #8a5200; }
+
+    /* Tafel */
+    .table { background: radial-gradient(ellipse at center, #3a8a2e, var(--felt) 75%); border-radius: 10px; padding: 14px 10px; min-height: 170px; margin-bottom: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; box-shadow: inset 0 2px 10px rgba(0,0,0,.25); }
+    .trick { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+    .played { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .played .who { color: #fff; font-size: .75rem; font-weight: 700; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .played.win .card { box-shadow: 0 0 0 3px var(--orange), 0 4px 10px rgba(0,0,0,.3); }
+    .turnmsg { color: #fff; font-weight: 700; text-align: center; font-size: .95rem; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+    .turnmsg.mine { background: var(--orange); padding: 6px 14px; border-radius: 999px; text-shadow: none; }
+
+    /* Kaarten */
+    .card {
+      width: 50px; height: 72px; border-radius: 6px; background: #fff; color: #222; border: 1px solid #cfcfcf;
+      display: flex; flex-direction: column; justify-content: space-between; padding: 4px 5px; font-weight: 800; line-height: 1;
+      box-shadow: 0 2px 4px rgba(0,0,0,.15); user-select: none; position: relative;
+    }
+    .card .r { font-size: 1.05rem; }
+    .card .s { font-size: 1.6rem; align-self: center; margin-bottom: 4px; }
+    .card.red { color: #c62828; }
+    .card.pen::after { content: ""; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+    .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 14px 0 4px; }
+    #handPanel { padding: 10px 8px 12px; }
+    .hand .card { width: min(50px, calc((100vw - 76px) / 8)); height: auto; aspect-ratio: 5 / 7.2; padding: 3px 4px; }
+    .hand .card .r { font-size: clamp(.85rem, 3.6vw, 1.05rem); }
+    .hand .card .s { font-size: clamp(1.2rem, 5.4vw, 1.6rem); }
+    .hand button.card { cursor: pointer; font-family: inherit; transition: transform .12s ease; }
+    .hand button.card:disabled { opacity: .38; cursor: not-allowed; }
+    .hand button.card.sel { transform: translateY(-12px); box-shadow: 0 0 0 3px var(--orange), 0 6px 12px rgba(0,0,0,.25); }
+    .handhint { text-align: center; font-size: .85rem; color: var(--muted); min-height: 1.2em; }
+
+    .box { padding: 12px; border-radius: var(--radius); background: var(--gold-soft); margin-bottom: 12px; }
+    .box p { margin: 0 0 10px; font-weight: 700; color: #8a5200; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .box p { color: #ffc46b; } }
+
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { padding: 7px 6px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th { font-size: .78rem; color: var(--muted); font-weight: 700; }
+    td:first-child, th:first-child { text-align: left; }
+    tfoot td { font-weight: 800; color: var(--head); border-bottom: 0; border-top: 3px solid var(--green); }
+    .table-wrap { overflow-x: auto; }
+    .winner { text-align: center; }
+    .winner .big { font-size: 2.6rem; }
+    .winner .tagx { font-family: "Kaushan Script", cursive; font-size: 1.3rem; color: var(--head); }
+
+    .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(calc(100% + 60px)); background: var(--green); color: #fff; padding: 12px 18px; border-radius: 6px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.2); transition: transform .25s ease, visibility .25s; visibility: hidden; z-index: 10; max-width: calc(100% - 32px); text-align: center; }
+    .toast.show { transform: translateX(-50%) translateY(0); visibility: visible; }
+    details summary { cursor: pointer; font-weight: 700; color: var(--head); }
+    details ul { margin: 12px 0 0; padding-left: 20px; color: var(--muted); font-size: .9rem; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <div class="brand">
+        <span class="tagline">Samen spelen, overal</span>
+        <h1><span class="suit">♥</span> Online</h1>
+      </div>
+      <a class="pill" href="./" id="lnkBoard">Scorebord</a>
+      <button class="pill hidden" id="btnLeave" type="button">Verlaten</button>
+    </div>
+  </header>
+  <div class="status hidden" id="status"></div>
+
+  <div class="wrap">
+    <!-- START -->
+    <section id="vStart">
+      <div class="panel">
+        <h2>Jouw naam</h2>
+        <label class="field"><span>Zo zien de anderen je</span>
+          <input type="text" id="inName" maxlength="14" autocomplete="nickname" placeholder="Bijv. Niels">
+        </label>
+      </div>
+      <div class="panel">
+        <h2>Spelen</h2>
+        <button class="btn" id="btnCreate" type="button">Nieuw spel maken</button>
+        <div class="or">of doe mee met een code</div>
+        <label class="field"><span>Spelcode</span>
+          <input type="text" id="inCode" class="code" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="ABCDE">
+        </label>
+        <button class="btn ghost" id="btnJoin" type="button">Meedoen</button>
+      </div>
+      <div class="panel">
+        <details>
+          <summary>Spelregels</summary>
+          <ul>
+            <li>Kort spel met 32 kaarten (7 t/m aas). Bij 3, 5 of 6 spelers gaan ♦7 en ♠7 uit het spel, zodat iedereen evenveel kaarten heeft.</li>
+            <li>Er worden geen kaarten doorgegeven. De speler links van de deler komt uit, met een kaart naar keuze (ook harten).</li>
+            <li>Je moet kleur bekennen. De hoogste kaart van de uitgekomen kleur wint de slag en komt weer uit.</li>
+            <li>Elke ♥ = 1 punt, ♠ vrouw = 5, ♣ boer = 2 (15 per ronde).</li>
+            <li>Iedereen telt op tot iemand 100 of meer heeft. Dan draait het om: iedereen telt af naar 0 en nu wil je juist punten. Wie het eerst op 0 of lager komt, wint.</li>
+            <li>Alle 15 punten in één ronde (de maan 🌙)? Dan kies je zelf: jij −15 of de anderen +15.</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <!-- LOBBY -->
+    <section id="vLobby" class="hidden">
+      <div class="panel">
+        <h2>Spelcode</h2>
+        <div class="roomcode" id="lobbyCode">-----</div>
+        <p class="muted" style="text-align:center;margin:0 0 12px">Stuur de anderen deze code of de link.</p>
+        <button class="btn ghost" id="btnShare" type="button">🔗 Link delen</button>
+      </div>
+      <div class="panel">
+        <h2>Spelers</h2>
+        <ul class="plist" id="lobbyPlayers"></ul>
+        <p class="muted" id="lobbyHint"></p>
+        <button class="btn" id="btnStartGame" type="button">Start spel ♥</button>
+      </div>
+    </section>
+
+    <!-- GAME -->
+    <section id="vGame" class="hidden">
+      <div class="chips" id="chips"></div>
+      <div class="seats" id="seats"></div>
+      <div class="table" id="table"></div>
+      <div id="action"></div>
+      <div class="panel" id="handPanel">
+        <div class="hand" id="hand"></div>
+        <div class="handhint" id="handHint"></div>
+      </div>
+      <div class="panel" id="roundsPanel">
+        <h2>Rondes</h2>
+        <div class="table-wrap"><table id="roundsTable"></table></div>
+      </div>
+    </section>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var $ = function (id) { return document.getElementById(id); };
+    var params = new URLSearchParams(location.search);
+    // Openbare MQTT-broker als doorgeefluik tussen de telefoons (geen account nodig).
+    var BROKER = params.get('broker') || 'wss://broker.hivemq.com:8884/mqtt';
+    var PREFIX = 'cosmico-hartenjagen/v1/';
+    var RULES = { target: 100, queen: 5, jack: 2, hearts: 8 };
+    var SUITS = ['C', 'H', 'S', 'D']; // volgorde in je hand: ♣ ♥ ♠ ♦ (afwisselend van kleur)
+    var SYM = { C: '♣', D: '♦', S: '♠', H: '♥' };
+    var RANKS = { 7: '7', 8: '8', 9: '9', 10: '10', 11: 'B', 12: 'V', 13: 'H', 14: 'A' };
+    var REMOVE_ORDER = ['D7', 'S7', 'D8', 'S8', 'C7', 'C8'];
+
+    function ls(k, v) {
+      try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; }
+    }
+    function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 2400); }
+    function rid(n, alpha) { alpha = alpha || 'abcdefghijkmnpqrstuvwxyz23456789'; var a = new Uint32Array(n), s = ''; crypto.getRandomValues(a); for (var i = 0; i < n; i++) s += alpha[a[i] % alpha.length]; return s; }
+
+    var me = ls('hj-online-me') || { pid: rid(12), name: '' };
+    ls('hj-online-me', me);
+    var session = ls('hj-online-session'); // { role: 'host'|'guest', room }
+    var client = null, connected = false, lastView = null, lastViewAt = 0, G = null, selCard = null, joinTimer = null;
+
+    /* ================= Kaarten & regels ================= */
+    function suitOf(c) { return c[0]; }
+    function rankOf(c) { return parseInt(c.slice(1), 10); }
+    function cardHtml(c) {
+      return '<span class="r">' + RANKS[rankOf(c)] + '</span><span class="s">' + SYM[suitOf(c)] + '</span>';
+    }
+    function cardClass(c) {
+      var red = suitOf(c) === 'H' || suitOf(c) === 'D';
+      var pen = suitOf(c) === 'H' || c === 'S12' || c === 'C11';
+      return 'card' + (red ? ' red' : '') + (pen ? ' pen' : '');
+    }
+    function cardName(c) { return SYM[suitOf(c)] + RANKS[rankOf(c)]; }
+    function sortHand(h) {
+      return h.slice().sort(function (a, b) {
+        var d = SUITS.indexOf(suitOf(a)) - SUITS.indexOf(suitOf(b));
+        return d || rankOf(a) - rankOf(b);
+      });
+    }
+    function legalCards(hand, trick) {
+      if (!trick.length) return hand.slice();
+      var led = suitOf(trick[0].card);
+      var follow = hand.filter(function (c) { return suitOf(c) === led; });
+      return follow.length ? follow : hand.slice();
+    }
+    function trickWinner(trick) {
+      var led = suitOf(trick[0].card), best = trick[0];
+      trick.forEach(function (t) { if (suitOf(t.card) === led && rankOf(t.card) > rankOf(best.card)) best = t; });
+      return best.seat;
+    }
+    function penalty(cards) {
+      var p = 0;
+      cards.forEach(function (c) { if (suitOf(c) === 'H') p += 1; if (c === 'S12') p += RULES.queen; if (c === 'C11') p += RULES.jack; });
+      return p;
+    }
+    function totalPoints() { return RULES.hearts + RULES.queen + RULES.jack; }
+
+    // Zelfde telling als het scorebord: optellen tot 100, dan omdraaien en aftellen; maan = keuze.
+    function delta(r, phase) {
+      var t = totalPoints();
+      if (r.moon >= 0 && r.moonChoice === 'self') return r.raw.map(function (_, i) { return i === r.moon ? -t : 0; });
+      if (r.moon >= 0 && r.moonChoice === 'others') return r.raw.map(function (_, i) { return i === r.moon ? 0 : t; });
+      var sign = phase === 'down' ? -1 : 1;
+      return r.raw.map(function (v) { return v * sign; });
+    }
+    function runInfo(rounds, n) {
+      var t = []; for (var i = 0; i < n; i++) t.push(0);
+      var phase = 'up', flipAt = -1, done = false, eff = [], runs = [];
+      rounds.forEach(function (r, k) {
+        var d = delta(r, phase);
+        d.forEach(function (v, i) { t[i] += v; });
+        eff.push(d); runs.push(t.slice());
+        if (phase === 'up' && t.some(function (v) { return v >= RULES.target; })) { phase = 'down'; flipAt = k; }
+        else if (phase === 'down' && t.some(function (v) { return v <= 0; })) done = true;
+      });
+      return { totals: t, phase: phase, flipAt: flipAt, done: done, eff: eff, runs: runs };
+    }
+
+    /* ================= Spelleider (host) ================= */
+    function hostKey() { return 'hj-online-host-' + G.room; }
+    function saveG() { ls(hostKey(), G); }
+    function seatOf(pid) { for (var i = 0; i < G.players.length; i++) if (G.players[i].pid === pid) return i; return -1; }
+
+    function newDeck(n) {
+      var d = [];
+      ['C', 'D', 'S', 'H'].forEach(function (s) { for (var r = 7; r <= 14; r++) d.push(s + r); });
+      var removed = REMOVE_ORDER.slice(0, d.length % n);
+      d = d.filter(function (c) { return removed.indexOf(c) < 0; });
+      for (var i = d.length - 1; i > 0; i--) { var a = new Uint32Array(1); crypto.getRandomValues(a); var j = a[0] % (i + 1); var x = d[i]; d[i] = d[j]; d[j] = x; }
+      return { deck: d, removed: removed };
+    }
+    function dealRound() {
+      var n = G.players.length, dk = newDeck(n), per = dk.deck.length / n;
+      G.hands = []; G.taken = [];
+      for (var i = 0; i < n; i++) { G.hands.push(dk.deck.slice(i * per, (i + 1) * per)); G.taken.push([]); }
+      G.removed = dk.removed;
+      G.trick = []; G.lastTrick = null;
+      G.leader = G.turn = (G.dealer + 1) % n;
+      G.phase = 'playing'; G.pending = null;
+      G.roundNo = G.rounds.length + 1;
+    }
+    function hostAction(pid, msg) {
+      var s = seatOf(pid);
+      switch (msg.type) {
+        case 'join':
+          if (s >= 0) { if (msg.name) G.players[s].name = msg.name; break; }
+          if (G.phase !== 'lobby') { sendTo(pid, { error: 'Dit spel is al begonnen.' }); return; }
+          if (G.players.length >= 6) { sendTo(pid, { error: 'Het spel is vol (max. 6 spelers).' }); return; }
+          G.players.push({ pid: pid, name: (msg.name || 'Speler').slice(0, 14) });
+          break;
+        case 'hello': if (s < 0) { sendTo(pid, { error: 'Je zit niet in dit spel.' }); return; } break;
+        case 'kick':
+          if (pid !== G.hostPid || G.phase !== 'lobby') return;
+          var k = seatOf(msg.pid); if (k > 0) { sendTo(msg.pid, { error: 'Je bent uit het spel gehaald.' }); G.players.splice(k, 1); }
+          break;
+        case 'start':
+          if (pid !== G.hostPid || G.phase !== 'lobby' || G.players.length < 3) return;
+          G.rounds = []; G.dealer = 0; dealRound();
+          break;
+        case 'play':
+          if (G.phase !== 'playing' || s !== G.turn) return;
+          var hand = G.hands[s];
+          if (hand.indexOf(msg.card) < 0 || legalCards(hand, G.trick).indexOf(msg.card) < 0) return;
+          hand.splice(hand.indexOf(msg.card), 1);
+          G.trick.push({ seat: s, card: msg.card });
+          if (G.trick.length < G.players.length) G.turn = (G.turn + 1) % G.players.length;
+          else { G.phase = 'trick'; G.trickWinner = trickWinner(G.trick); scheduleCollect(); }
+          break;
+        case 'moon':
+          if (G.phase !== 'moon' || s !== G.pending.moon || (msg.choice !== 'self' && msg.choice !== 'others')) return;
+          G.pending.moonChoice = msg.choice; finishRound(G.pending);
+          break;
+        case 'next':
+          if (G.phase !== 'roundEnd') return;
+          G.dealer = (G.dealer + 1) % G.players.length; dealRound();
+          break;
+        case 'again':
+          if (G.phase !== 'gameover') return;
+          G.rounds = []; G.dealer = (G.dealer + 1) % G.players.length; dealRound();
+          break;
+        case 'ping': break;
+        default: return;
+      }
+      if (s >= 0 || msg.type === 'join') { G.seen = G.seen || {}; G.seen[pid] = Date.now(); }
+      saveG(); broadcast();
+    }
+    var collectTimer = null;
+    function scheduleCollect() { clearTimeout(collectTimer); collectTimer = setTimeout(collectTrick, 1700); }
+    function collectTrick() {
+      if (G.phase !== 'trick') return;
+      var w = G.trickWinner;
+      G.trick.forEach(function (t) { G.taken[w].push(t.card); });
+      G.lastTrick = { cards: G.trick, winner: w };
+      G.trick = [];
+      if (G.hands.every(function (h) { return !h.length; })) endRound();
+      else { G.leader = G.turn = w; G.phase = 'playing'; }
+      saveG(); broadcast();
+    }
+    function endRound() {
+      var raw = G.taken.map(penalty), moon = -1;
+      G.taken.forEach(function (cards, i) {
+        var hearts = cards.filter(function (c) { return suitOf(c) === 'H'; }).length;
+        if (hearts === RULES.hearts && cards.indexOf('S12') >= 0 && cards.indexOf('C11') >= 0) moon = i;
+      });
+      var r = { raw: raw, moon: moon };
+      if (moon >= 0) { G.pending = r; G.phase = 'moon'; }
+      else finishRound(r);
+    }
+    function finishRound(r) {
+      G.rounds.push(r); G.pending = null;
+      G.phase = runInfo(G.rounds, G.players.length).done ? 'gameover' : 'roundEnd';
+    }
+
+    function viewFor(pid) {
+      var s = seatOf(pid), n = G.players.length, info = runInfo(G.rounds, n), now = Date.now();
+      var hand = s >= 0 && G.hands ? sortHand(G.hands[s]) : [];
+      return {
+        room: G.room, phase: G.phase, mySeat: s, isHost: pid === G.hostPid, ts: now,
+        players: G.players.map(function (p, i) {
+          var on = p.pid === G.hostPid || (G.seen && G.seen[p.pid] && now - G.seen[p.pid] < 30000);
+          return { name: p.name, pid: p.pid, online: !!on, roundPts: G.taken ? penalty(G.taken[i] || []) : 0, tricks: G.taken ? (G.taken[i] || []).length / n : 0 };
+        }),
+        hand: hand,
+        legal: G.phase === 'playing' && s === G.turn ? legalCards(G.hands[s], G.trick) : [],
+        trick: G.trick || [], trickWinner: G.phase === 'trick' ? G.trickWinner : -1,
+        lastTrick: G.lastTrick, turn: G.turn, dealer: G.dealer, leader: G.leader, roundNo: G.roundNo || 0,
+        removed: G.removed || [], pending: G.pending,
+        rounds: G.rounds, totals: info.totals, scorePhase: info.phase, flipAt: info.flipAt, eff: info.eff, runs: info.runs
+      };
+    }
+    function topic(t) { return PREFIX + (G ? G.room : session.room) + '/' + t; }
+    function sendTo(pid, obj) {
+      if (G && pid === G.hostPid) { if (obj.error) toast(obj.error); return; }
+      if (client) client.publish(topic('p/' + pid), JSON.stringify(obj), { qos: 1 });
+    }
+    function broadcast() {
+      if (!G) return;
+      G.players.forEach(function (p) { if (p.pid === G.hostPid) onView(viewFor(p.pid)); else sendTo(p.pid, { view: viewFor(p.pid) }); });
+    }
+
+    /* ================= Verbinding ================= */
+    function connect() {
+      if (typeof mqtt === 'undefined') { setStatus('Kan de verbindingsbibliotheek niet laden. Controleer je internet en herlaad.'); return; }
+      setStatus('Verbinding maken…');
+      client = mqtt.connect(BROKER, { clientId: 'hj_' + me.pid + '_' + rid(4), clean: true, reconnectPeriod: 2000, connectTimeout: 10000, keepalive: 30 });
+      client.on('connect', function () {
+        connected = true; setStatus('');
+        if (session.role === 'host') {
+          client.subscribe(topic('host'), { qos: 1 });
+          broadcast();
+        } else {
+          client.subscribe(topic('p/' + me.pid), { qos: 1 }, function () { sendHost({ type: lastView ? 'hello' : 'join', name: me.name }); });
+        }
+      });
+      client.on('reconnect', function () { setStatus('Verbinding herstellen…'); });
+      client.on('offline', function () { connected = false; setStatus('Geen verbinding — opnieuw proberen…'); });
+      client.on('error', function () { setStatus('Verbindingsfout — opnieuw proberen…'); });
+      client.on('message', function (t, payload) {
+        var msg; try { msg = JSON.parse(payload.toString()); } catch (e) { return; }
+        if (session.role === 'host') { if (msg && msg.pid && msg.type) hostAction(msg.pid, msg); }
+        else if (msg.error) { clearTimeout(joinTimer); toast(msg.error); if (!lastView) { leave(true); } }
+        else if (msg.view) { clearTimeout(joinTimer); onView(msg.view); }
+      });
+    }
+    function sendHost(obj) {
+      obj.pid = me.pid;
+      if (session.role === 'host') { hostAction(me.pid, obj); return; }
+      if (client && connected) client.publish(topic('host'), JSON.stringify(obj), { qos: 1 });
+      else toast('Nog geen verbinding…');
+    }
+    function setStatus(msg) { var s = $('status'); s.textContent = msg; s.classList.toggle('hidden', !msg); }
+
+    // Gasten: houd de spelleider op de hoogte en merk het als die wegvalt.
+    setInterval(function () {
+      if (!session) return;
+      if (session.role === 'guest' && connected) {
+        sendHost({ type: 'ping' });
+        if (lastView && Date.now() - lastViewAt > 35000) setStatus('Geen contact met de spelleider. Staat het spel bij hem nog open?');
+      }
+      if (session.role === 'host' && connected) broadcast();
+    }, 12000);
+
+    /* ================= Schermen ================= */
+    function showView(name) {
+      ['vStart', 'vLobby', 'vGame'].forEach(function (v) { $(v).classList.toggle('hidden', v !== name); });
+      $('btnLeave').classList.toggle('hidden', name === 'vStart');
+      $('lnkBoard').classList.toggle('hidden', name !== 'vStart');
+    }
+
+    function onView(v) {
+      var prev = lastView; lastView = v; lastViewAt = Date.now();
+      if (lastView && $('status').textContent.indexOf('spelleider') >= 0) setStatus('');
+      if (v.phase === 'lobby') { renderLobby(v); return; }
+      showView('vGame'); renderGame(v, prev);
+    }
+
+    function renderLobby(v) {
+      showView('vLobby');
+      $('lobbyCode').textContent = v.room;
+      $('lobbyPlayers').innerHTML = v.players.map(function (p, i) {
+        return '<li><span class="dot' + (p.online ? '' : ' off') + '"></span>' + esc(p.name) + (p.pid === me.pid ? ' (jij)' : '') +
+          (i === 0 ? '<span class="tag">spelleider</span>' : (v.isHost ? '<button class="btn ghost small tag" data-kick="' + esc(p.pid) + '" type="button">✕</button>' : '')) + '</li>';
+      }).join('');
+      Array.prototype.forEach.call($('lobbyPlayers').querySelectorAll('[data-kick]'), function (b) {
+        b.addEventListener('click', function () { if (confirm('Deze speler verwijderen?')) sendHost({ type: 'kick', pid: b.getAttribute('data-kick') }); });
+      });
+      var n = v.players.length;
+      $('btnStartGame').classList.toggle('hidden', !v.isHost);
+      $('btnStartGame').disabled = n < 3;
+      $('lobbyHint').textContent = v.isHost
+        ? (n < 3 ? 'Wacht tot er minstens 3 spelers zijn (meestal 4).' : n + ' spelers. Start als iedereen er is.')
+        : 'Wachten tot de spelleider het spel start…';
+    }
+
+    function name(v, i) { return v.players[i] ? v.players[i].name : '?'; }
+
+    function renderGame(v, prev) {
+      var n = v.players.length, my = v.mySeat;
+      // chips
+      var chips = ['Ronde ' + v.roundNo, 'Deler: ' + esc(name(v, v.dealer))];
+      if (v.removed.length) chips.push('Uit het spel: ' + v.removed.map(cardName).join(' '));
+      var chipHtml = chips.map(function (c) { return '<span class="chip">' + c + '</span>'; }).join('') +
+        '<span class="chip' + (v.scorePhase === 'down' ? ' down' : '') + '">' + (v.scorePhase === 'down' ? '⇩ Aftellen naar 0' : '⇧ Optellen tot ' + RULES.target) + '</span>';
+      $('chips').innerHTML = chipHtml;
+      // seats
+      $('seats').style.setProperty('--cols', n <= 4 ? n : 3);
+      $('seats').innerHTML = v.players.map(function (p, i) {
+        var turn = (v.phase === 'playing' && v.turn === i) || (v.phase === 'moon' && v.pending && v.pending.moon === i);
+        return '<div class="seat' + (turn ? ' turn' : '') + (i === my ? ' me' : '') + '">' + (i === v.dealer ? '<span class="deal">deler</span>' : '') +
+          '<div class="nm"><span class="dot' + (p.online ? '' : ' off') + '" style="display:inline-block;margin-right:5px;width:8px;height:8px"></span>' + esc(p.name) + '</div>' +
+          '<div class="sc"><span class="tot">' + v.totals[i] + '</span><span class="rp">' + (p.roundPts ? '+' + p.roundPts + ' ♥' : '') + '</span></div></div>';
+      }).join('');
+      // table
+      var tbl = '';
+      var showTrick = v.trick.length ? v.trick : [];
+      if (showTrick.length) {
+        tbl += '<div class="trick">' + showTrick.map(function (t) {
+          return '<div class="played' + (v.trickWinner === t.seat ? ' win' : '') + '"><div class="' + cardClass(t.card) + '">' + cardHtml(t.card) + '</div><div class="who">' + esc(name(v, t.seat)) + '</div></div>';
+        }).join('') + '</div>';
+      }
+      var msg = '', mine = false;
+      if (v.phase === 'playing') {
+        mine = v.turn === my;
+        msg = mine ? (v.trick.length ? 'Jij bent aan de beurt' : 'Jij komt uit') : (esc(name(v, v.turn)) + (v.trick.length ? ' is aan de beurt' : ' komt uit') + '…');
+      } else if (v.phase === 'trick') msg = esc(name(v, v.trickWinner)) + ' pakt de slag';
+      else if (v.phase === 'moon') msg = '🌙 ' + esc(name(v, v.pending.moon)) + ' heeft alle punten!';
+      else if (v.phase === 'roundEnd') msg = 'Ronde ' + v.roundNo + ' is klaar';
+      else if (v.phase === 'gameover') msg = '🏆 Het spel is afgelopen';
+      tbl += '<div class="turnmsg' + (mine ? ' mine' : '') + '">' + msg + '</div>';
+      $('table').innerHTML = tbl;
+      if (mine && !(prev && prev.phase === 'playing' && prev.turn === my) && navigator.vibrate) { try { navigator.vibrate(120); } catch (e) {} }
+
+      renderAction(v);
+      renderHand(v);
+      renderRounds(v);
+    }
+
+    function renderAction(v) {
+      var a = $('action'), my = v.mySeat, html = '';
+      if (v.phase === 'moon') {
+        var t = totalPoints();
+        if (v.pending.moon === my) html = '<div class="box"><p>🌙 Jij hebt alle ' + t + ' punten! Wat kies je?</p><div class="row"><button class="btn" data-moon="self" type="button">Ik −' + t + '</button><button class="btn ghost" data-moon="others" type="button">Anderen +' + t + '</button></div></div>';
+        else html = '<div class="box"><p>🌙 ' + esc(name(v, v.pending.moon)) + ' kiest: zelf −' + t + ' of de anderen +' + t + '…</p></div>';
+      } else if (v.phase === 'roundEnd' || v.phase === 'gameover') {
+        var k = v.rounds.length - 1, d = v.eff[k] || [], r = v.rounds[k];
+        var lines = v.players.map(function (p, i) {
+          var x = d[i] || 0;
+          return '<tr><td>' + esc(p.name) + (r && r.moon === i ? ' 🌙' : '') + '</td><td>' + r.raw[i] + '</td><td>' + (x > 0 ? '+' + x : x < 0 ? '−' + Math.abs(x) : 0) + '</td><td><b>' + v.totals[i] + '</b></td></tr>';
+        }).join('');
+        var flipNote = v.flipAt === k ? '<div class="box"><p>⇩ Omgedraaid! Vanaf nu telt iedereen af naar 0 en wil je juist punten halen.</p></div>' : '';
+        if (v.phase === 'gameover') {
+          var best = Math.min.apply(null, v.totals);
+          var winners = v.players.filter(function (_, i) { return v.totals[i] === best; }).map(function (p) { return esc(p.name); });
+          html = '<div class="panel winner"><div class="big">🏆</div><div class="tagx">En de winnaar is…</div><h2>' + winners.join(' & ') + '</h2><p class="muted">Met ' + best + ' punten na ' + v.rounds.length + ' rondes.</p>' +
+            '<button class="btn" data-act="again" type="button">Nog een spel</button></div>';
+        } else {
+          html = '<div class="panel"><h2>Ronde ' + v.roundNo + '</h2>' + flipNote + '<div class="table-wrap"><table><thead><tr><th>Speler</th><th>Punten</th><th>Stand ±</th><th>Totaal</th></tr></thead><tbody>' + lines + '</tbody></table></div>' +
+            '<div style="margin-top:14px"><button class="btn" data-act="next" type="button">Volgende ronde</button></div></div>';
+        }
+      } else if (v.lastTrick && v.phase === 'playing' && !v.trick.length) {
+        html = '<p class="muted" style="text-align:center;margin:-4px 0 12px">Vorige slag: ' + v.lastTrick.cards.map(function (t) { return cardName(t.card); }).join(' ') + ' → ' + esc(name(v, v.lastTrick.winner)) + '</p>';
+      }
+      a.innerHTML = html;
+      Array.prototype.forEach.call(a.querySelectorAll('[data-moon]'), function (b) {
+        b.addEventListener('click', function () { if (confirm(b.textContent + '?')) sendHost({ type: 'moon', choice: b.getAttribute('data-moon') }); });
+      });
+      Array.prototype.forEach.call(a.querySelectorAll('[data-act]'), function (b) {
+        b.addEventListener('click', function () { b.disabled = true; sendHost({ type: b.getAttribute('data-act') }); });
+      });
+    }
+
+    function renderHand(v) {
+      var h = $('hand'), legal = v.legal || [];
+      if (selCard && legal.indexOf(selCard) < 0) selCard = null;
+      $('handPanel').classList.toggle('hidden', !v.hand.length);
+      h.innerHTML = v.hand.map(function (c) {
+        return '<button type="button" class="' + cardClass(c) + (c === selCard ? ' sel' : '') + '" data-c="' + c + '"' + (legal.indexOf(c) < 0 ? ' disabled' : '') + ' aria-label="' + cardName(c) + '">' + cardHtml(c) + '</button>';
+      }).join('');
+      $('handHint').textContent = legal.length ? (selCard ? 'Tik nog een keer op ' + cardName(selCard) + ' om te spelen' : 'Tik op een kaart en tik nog een keer om te spelen') : '';
+      Array.prototype.forEach.call(h.querySelectorAll('button.card'), function (b) {
+        b.addEventListener('click', function () {
+          var c = b.getAttribute('data-c');
+          if (selCard === c) { selCard = null; sendHost({ type: 'play', card: c }); }
+          else { selCard = c; renderHand(v); }
+        });
+      });
+    }
+
+    function renderRounds(v) {
+      $('roundsPanel').classList.toggle('hidden', !v.rounds.length);
+      if (!v.rounds.length) return;
+      var n = v.players.length;
+      var head = '<thead><tr><th>#</th>' + v.players.map(function (p) { return '<th>' + esc(p.name) + '</th>'; }).join('') + '</tr></thead>';
+      var body = v.rounds.map(function (r, k) {
+        var row = '<tr><td>' + (k + 1) + '</td>' + v.eff[k].map(function (x, i) { return '<td>' + (r.moon === i ? '🌙 ' : '') + (x < 0 ? '−' + Math.abs(x) : x) + '</td>'; }).join('') + '</tr>';
+        if (k === v.flipAt) row += '<tr><td colspan="' + (n + 1) + '" style="text-align:center;color:var(--gold);font-weight:800;background:var(--gold-soft)">⇩ Omgedraaid — vanaf hier aftellen</td></tr>';
+        return row;
+      }).join('');
+      var foot = '<tfoot><tr><td>Totaal</td>' + v.totals.map(function (t) { return '<td>' + t + '</td>'; }).join('') + '</tr></tfoot>';
+      $('roundsTable').innerHTML = head + '<tbody>' + body + '</tbody>' + foot;
+    }
+
+    /* ================= Start / meedoen ================= */
+    function needName() {
+      var nm = $('inName').value.trim();
+      if (!nm) { toast('Vul eerst je naam in'); $('inName').focus(); return null; }
+      me.name = nm.slice(0, 14); ls('hj-online-me', me); return me.name;
+    }
+    $('inName').value = me.name || '';
+    var jc = (params.get('join') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+    if (jc) $('inCode').value = jc;
+
+    $('btnCreate').addEventListener('click', function () {
+      if (!needName()) return;
+      var room = rid(5, 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789');
+      session = { role: 'host', room: room }; ls('hj-online-session', session);
+      G = { room: room, hostPid: me.pid, phase: 'lobby', players: [{ pid: me.pid, name: me.name }], rounds: [], dealer: 0, seen: {} };
+      saveG(); connect(); broadcast();
+    });
+    $('btnJoin').addEventListener('click', function () {
+      if (!needName()) return;
+      var code = $('inCode').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (code.length !== 5) { toast('De spelcode heeft 5 tekens'); return; }
+      session = { role: 'guest', room: code }; ls('hj-online-session', session);
+      lastView = null; connect();
+      clearTimeout(joinTimer);
+      joinTimer = setTimeout(function () { if (!lastView) { toast('Spel niet gevonden. Klopt de code en staat het spel open bij de spelleider?'); leave(true); } }, 12000);
+    });
+    $('btnStartGame').addEventListener('click', function () { sendHost({ type: 'start' }); });
+    $('btnShare').addEventListener('click', function () {
+      var url = location.origin + location.pathname + '?join=' + (G ? G.room : session.room) + (params.get('broker') ? '&broker=' + encodeURIComponent(BROKER) : '');
+      if (navigator.share) navigator.share({ title: 'Hartenjagen', text: 'Doe mee met hartenjagen! Code: ' + (G ? G.room : session.room), url: url }).catch(function () {});
+      else if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { toast('Link gekopieerd'); }, function () { prompt('Kopieer de link', url); });
+      else prompt('Kopieer de link', url);
+    });
+    function leave(silent) {
+      if (!silent && !confirm(session && session.role === 'host' ? 'Spel verlaten? Als spelleider stopt het spel dan voor iedereen.' : 'Spel verlaten?')) return;
+      if (G) ls(hostKey(), null);
+      ls('hj-online-session', null);
+      try { if (client) client.end(true); } catch (e) {}
+      client = null; connected = false; G = null; session = null; lastView = null; selCard = null;
+      setStatus(''); showView('vStart');
+    }
+    $('btnLeave').addEventListener('click', function () { leave(false); });
+
+    /* ================= Hervatten na herladen ================= */
+    if (session && session.room) {
+      if (session.role === 'host') {
+        G = ls('hj-online-host-' + session.room);
+        if (!G) { ls('hj-online-session', null); session = null; }
+        else { if (G.phase === 'trick') scheduleCollect(); connect(); broadcast(); }
+      } else { connect(); }
+    }
+    if (!session) showView('vStart');
+    else if (session.role === 'guest' && !lastView) { showView('vLobby'); $('lobbyCode').textContent = session.room; $('lobbyPlayers').innerHTML = ''; $('btnStartGame').classList.add('hidden'); $('lobbyHint').textContent = 'Verbinden met het spel…'; }
+  })();
+  </script>
+</body>
+</html>
